@@ -14,7 +14,7 @@ for bot in $(cat config.json | jq -r 'to_entries[] | "\(.key),\(.value.source),\
   git fetch origin
   git checkout $branch
   #pip install --no-cache-dir -r requirements.txt 
-  pip install -U pip # && pip install -U -r requirements.txt
+  pip install -U pip && pip install -U -r requirements.txt
   
   cd ..
 done
