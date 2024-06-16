@@ -1,12 +1,18 @@
-import requests
-import time
+from time import sleep
+from os import environ
+from logging import error as logerror
 
-TIME = 120
-starttime = time.time()
+from requests import get as rget
 
-while True:
-    try:
-        requests.get('http://0.0.0.0')
-    except:
-        pass
-    time.sleep(TIME - ((time.time() - starttime) % TIME))
+BASE_URL = environ.get('BASE_URL', "http://0.0.0.0").rstrip("/")
+PORT = environ.get('PORT', None)
+
+if PORT is not None:
+    while 1:
+        try:
+            rget(BASE_URL).status_code
+            sleep(600)
+        except Exception as e:
+            logerror(f"alive.py: {e}")
+            sleep(600)
+            continue

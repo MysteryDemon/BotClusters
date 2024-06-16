@@ -3,7 +3,8 @@
         "source": "https://github.com/<GitHub Username>/<repo1>.git",
         "branch": "your-branch-name",
         "env": {
-            "TOKEN": ""
+            "TOKEN": "",
+            "TOKEN2": ""
         },
         "run": ""
     },

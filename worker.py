@@ -1,36 +1,31 @@
 import os
-import subprocess
-import json
-import time
+from os import path as ospath
+from sys import executable
+from json import loads
+from asyncio import create_subprocess_exec, run, sleep as asleep, gather, create_task
+from asyncio.subprocess import DEVNULL
 
-with open("config.json", "r") as jsonfile:
-    bots = json.load(jsonfile)
-
-bot_processes = []
-for bot_name, bot_config in bots.items():
-    
-    # sleep
-    time.sleep(5)
-
-    # Set the environment variables for this bot
+async def start_bot(bot_name, bot_config):
     for env_name, env_value in bot_config['env'].items():
         os.environ[env_name] = env_value
-    
+
     bot_dir = f"/app/{bot_name}"
-    requirements_file = os.path.join(bot_dir, 'requirements.txt')
-    bot_file = os.path.join(bot_dir, bot_config['run'])
+    bot_file = ospath.join(bot_dir, bot_config['run'])
 
-    # Clone the bot repository
-    # subprocess.run(['git', 'clone', bot_config['source'], bot_dir], check=True)
-    
-    # Install bot requirements
-    # subprocess.run(['pip', 'install', '--no-cache-dir', '-r', requirements_file], check=True)
-    
-    # Run the bot
     print(f'Starting {bot_name} bot with {bot_file}')
-    p = subprocess.Popen(['python3', bot_file], cwd=bot_dir, env=os.environ)
-    bot_processes.append(p)
+    return await create_subprocess_exec(executable, bot_file, cwd=bot_dir, env=os.environ, stdout=DEVNULL, stderr=DEVNULL)
 
-# Wait for all bot processes to complete
-for p in bot_processes:
-    p.wait()
+async def main():
+    with open("config.json", "r") as jsonfile:
+        bots = loads(jsonfile)
+
+    bot_tasks = []
+    for bot_name, bot_config in bots.items():
+        await asleep(2.5)
+        bot_tasks.append(create_task(start_bot(bot_name, bot_config)))
+
+    await gather(*(p.wait() for p in await gather(*bot_tasks)))
+
+
+if __name__ == "__main__":
+    run(main())

@@ -1,4 +1,4 @@
-# BotClusters
+## ***BotClusters***
 
 Have you encountered the problem where you have to host less resource intense Telegram Bots for free and you can only host a bot for an account but you wanted to host all bots in one instance, well say no more...
 
@@ -8,9 +8,9 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## Guide
 
-1. *Fork this repositary*
-2. *Edit CONFIG.json to your liking*
-3. *Host that repositary*
+1. *Fork this repository*
+2. *Edit CONFIG.json to your likings*
+3. *Host that repository*
 4. *Profit*
 
 ---
@@ -28,7 +28,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## Example
 
-```
+```json
 {   
     "Ebook": {
         "source": "https://github.com/bipinkrish/Ebooks-Bot.git",
