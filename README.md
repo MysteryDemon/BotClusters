@@ -1,4 +1,4 @@
-# BotCluster
+# BotClusters
 
 Have you encountered the problem where you have to host less resource intense Telegram Bots for free and you can only host a bot for an account but you wanted to host all bots in one instance, well say no more...
 
