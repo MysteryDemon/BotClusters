@@ -1,4 +1,13 @@
-## ***BotClusters***
+<div align="center">
+    <a href="https://github.com/MysteryDemon/BotClusters">
+        <kbd>
+            <img width="200" src="https://te.legra.ph/file/337898fcd33f27b9de71d.jpg" alt="Bot Clusters Logo">
+        </kbd>
+    </a>
+</div>
+
+
+## 🪧 ***BotClusters***
 
 Have you encountered the problem where you have to host less resource intense Telegram Bots for free and you can only host a bot for an account but you wanted to host all bots in one instance, well say no more...
 
@@ -6,18 +15,18 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ---
 
-## Guide
+## ❓️ ***How to Use ?***
 
-1. *Fork this repository*
-2. *Edit CONFIG.json to your likings*
-3. *Host that repository*
-4. *Profit*
+1. *Fork & Star this repository*
+2. *Edit `config.json` to your Repo Data*
+3. *Deploy and Host your Forked repository on server*
+4. *Run Several Instance on Same Deploy*
 
 ---
 
-## Features
+## 🔰 ***Repo Features***
 
-* **Stay Updated** since it clones from GitHub.
+* **Stay Updated** since it clones from GitHub (on every Restart)
 * **Extend** you can extend this to any number of bots by just adding more objects (see [Example](#example) below) although i recommend not to exceed 5 for 500 MB memory.
 * **ENVs** you can set different ENV values for different bots even with same name.
 * **Control** you can also set script file from where execution starts for that bot.
@@ -26,7 +35,19 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ---
 
-## Example
+## #️⃣ **Sample** `config.json`
+
+  1. Bots Details:
+    `Ebook`: Indentifier Name (Can be Anything But Unique for Every Bot)
+
+    |Variable|Value|Required|
+    |:---:|:---:|:---:|
+    |`source`|Give Github URL of it.|*Required|
+    |`branch`|Branch of Github Repository|*Required|
+    |`env`|Environment Variables for Bot|*Required|
+    |`run`|Execution Command to run Bot|*Required|
+    
+
 
 ```json
 {   
@@ -67,4 +88,8 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 }
 ```
 
-```Source Repo``` - [MultiBots](https://github.com/bipinkrish/MultiBots)
+---
+
+### ℹ️ ***References:***
+
+- `Source Repo` : [MultiBots](https://github.com/bipinkrish/MultiBots)
