@@ -1,7 +1,7 @@
 <div align="center">
     <a href="https://github.com/MysteryDemon/BotClusters">
         <kbd>
-            <img width="200" src="https://te.legra.ph/file/337898fcd33f27b9de71d.jpg" alt="Bot Clusters Logo">
+            <img width="300" src="https://te.legra.ph/file/337898fcd33f27b9de71d.jpg" alt="Bot Clusters Logo">
         </kbd>
     </a>
 </div>
@@ -37,8 +37,9 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## #️⃣ **Sample** `config.json`
 
-  1. Bots Details:
-    `Ebook`: Indentifier Name (Can be Anything But Unique for Every Bot)
+1. **Bots Details**:
+
+   `Ebook`: Indentifier Name (Can be Anything But Unique for Every Bot)
 
     |Variable|Value|Required|
     |:---:|:---:|:---:|
