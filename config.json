@@ -1,12 +1,12 @@
 {   
     "bot1": {
-        "source": "https://github.com/<GitHub Username>/<repo1>.git",
-        "branch": "your-branch-name",
+        "source": "https://github.com/Sethijai/File-Sharing-Bot.git",
+        "branch": "main",
         "env": {
             "TOKEN": "",
             "TOKEN2": ""
         },
-        "run": ""
+        "run": "main.py"
     },
     "bot2": {
         "source": "https://github.com/<GitHub Username>/<repo2>.git",
