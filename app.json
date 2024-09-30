@@ -1,0 +1,9 @@
+{
+    "name": "Bot Cluster",
+    "description": "A Repository To Run Multiple Telegram Bots At Once",
+    "logo": "https://telegra.ph/file/4a483d6f7e6078ae4cd45.jpg",
+    "keywords": ["Telegram","python", "Cluster","GitHub","Repository"],
+    "repository": "https://github.com/MysteryDemon/BotCluster",
+    "success_url": "",
+    "stack": "container"
+}
