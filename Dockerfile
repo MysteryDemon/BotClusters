@@ -1,4 +1,4 @@
-FROM mysterydemon/botcluster:hub
+FROM mysterydemon/botcluster:latest
 
 WORKDIR /app
 COPY requirements.txt ./
