@@ -21,7 +21,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 2. *Edit `config.json` to your Repo Data*
 3. *Deploy and Host your Forked repository on server*
 4. *Run Several Instance on Same Deploy*
-
+```Video Tutorial``` - https://youtu.be/EZJSQVtEj9o 
 ---
 
 ## 🔰 ***Repo Features***
