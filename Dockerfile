@@ -1,4 +1,4 @@
-FROM mysterydemon/botcluster:latest
+FROM mysterydemon/botcluster:ffmpeg-v7.0.2
 
 WORKDIR /app
 COPY requirements.txt ./
