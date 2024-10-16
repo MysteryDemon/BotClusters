@@ -1,27 +1,18 @@
 {   
     "bot1": {
-        "source": "https://github.com/Sethijai/File-Sharing-Bot.git",
+        "source": "https://github.com/Sethijai/uploasTxt.git",
         "branch": "main",
         "env": {
-            "TOKEN": "",
-            "TOKEN2": ""
+            "BOT_TOKEN": "8127063024:AAH1Cs8atxlAlbRlpunJUJSn4LVLG6FBxzI"
         },
         "run": "main.py"
     },
     "bot2": {
-        "source": "https://github.com/<GitHub Username>/<repo2>.git",
-        "branch": "your-branch-name",
+        "source": "https://github.com/Sethijai/uploasTxt.git",
+        "branch": "main",
         "env": {
-            "TOKEN": ""
+            "BOT_TOKEN": "7821208337:AAG12bK7XkDuSFIgXP-2FypgjK9Y7Vq2ahw"
         },
-        "run": ""
-    },
-    "bot3": {
-        "source": "https://<GitHub Username>:<GitHub Token>@github.com/<GitHub Username>/<private-repo>.git",
-        "branch": "your-branch-name",
-        "env": {
-            "TOKEN": ""
-        },
-        "run": ""
+        "run": "main.py"
     }
 }
