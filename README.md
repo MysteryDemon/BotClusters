@@ -21,7 +21,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 - 🔄 **Auto Updates**: *Automatic updates through GitHub cloning on every restart*
 - 🔌 **Extensible**: *Add unlimited bots by simply including more configuration objects*
 - 🌐 **Interactive Dashboard**: *Real-time web interface for bot monitoring and control*
-- 🛡️ **Reliable Process Management**:  *Powered by supervisord for automated process supervision* **(Smart error handling and automatic recovery on failures)**
+- 🛡️ **Reliable Process Management**:  *Powered by supervisord for automated process supervision* ***(Smart error handling and automatic recovery on failures)***
 - 🔐 **Environment Control**: *Set unique ENV values for each bot*
 - 🎮 **Custom Execution**: *Configure custom script paths for bot initialization*
 - 🔒 **Private Repo Support**: *Clone and run bots from private repositories using tokens*
