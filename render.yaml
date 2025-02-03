@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cluster
+    branch: ENV
+    plan: free
+    dockerfilePath: ./Dockerfile
+    repo: https://github.com/mysterydemon/Botclusters
+    env: docker
+    envVars:
+      - key: CLUSTER_01
+        sync: false
+    autoDeploy: false

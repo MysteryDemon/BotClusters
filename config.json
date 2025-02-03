@@ -1,0 +1,124 @@
+{
+    "clusters": [
+        {
+            "name": "CLUSTER_01",
+            "details": "${CLUSTER_01}"
+        },
+        {
+            "name": "CLUSTER_02",
+            "details": "${CLUSTER_02}"
+        },
+        {
+            "name": "CLUSTER_03",
+            "details": "${CLUSTER_03}"
+        },
+        {
+            "name": "CLUSTER_04",
+            "details": "${CLUSTER_04}"
+        },
+        {
+            "name": "CLUSTER_05",
+            "details": "${CLUSTER_05}"
+        },
+        {
+            "name": "CLUSTER_06",
+            "details": "${CLUSTER_06}"
+        },
+        {
+            "name": "CLUSTER_07",
+            "details": "${CLUSTER_07}"
+        },
+        {
+            "name": "CLUSTER_08",
+            "details": "${CLUSTER_08}"
+        },
+        {
+            "name": "CLUSTER_09",
+            "details": "${CLUSTER_09}"
+        },
+        {
+            "name": "CLUSTER_10",
+            "details": "${CLUSTER_10}"
+        },
+        {
+            "name": "CLUSTER_11",
+            "details": "${CLUSTER_11}"
+        },
+        {
+            "name": "CLUSTER_12",
+            "details": "${CLUSTER_12}"
+        },
+        {
+            "name": "CLUSTER_13",
+            "details": "${CLUSTER_13}"
+        },
+        {
+            "name": "CLUSTER_14",
+            "details": "${CLUSTER_14}"
+        },
+        {
+            "name": "CLUSTER_15",
+            "details": "${CLUSTER_15}"
+        },
+        {
+            "name": "CLUSTER_16",
+            "details": "${CLUSTER_16}"
+        },
+        {
+            "name": "CLUSTER_17",
+            "details": "${CLUSTER_17}"
+        },
+        {
+            "name": "CLUSTER_18",
+            "details": "${CLUSTER_18}"
+        },
+        {
+            "name": "CLUSTER_19",
+            "details": "${CLUSTER_19}"
+        },
+        {
+            "name": "CLUSTER_20",
+            "details": "${CLUSTER_20}"
+        },
+        {
+            "name": "CLUSTER_21",
+            "details": "${CLUSTER_21}"
+        },
+        {
+            "name": "CLUSTER_22",
+            "details": "${CLUSTER_22}"
+        },
+        {
+            "name": "CLUSTER_23",
+            "details": "${CLUSTER_23}"
+        },
+        {
+            "name": "CLUSTER_24",
+            "details": "${CLUSTER_24}"
+        },
+        {
+            "name": "CLUSTER_25",
+            "details": "${CLUSTER_25}"
+        },
+        {
+            "name": "CLUSTER_26",
+            "details": "${CLUSTER_26}"
+        },
+        {
+            "name": "CLUSTER_27",
+            "details": "${CLUSTER_27}"
+        },
+        {
+            "name": "CLUSTER_28",
+            "details": "${CLUSTER_28}"
+        },
+        {
+            "name": "CLUSTER_29",
+            "details": "${CLUSTER_29}"
+        },
+        {
+            "name": "CLUSTER_30",
+            "details": "${CLUSTER_30}"
+        }
+    ]
+}
