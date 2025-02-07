@@ -31,9 +31,9 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 ---
 
 ## 🚀 ***Quick Start***
-* **Fork this repository**
-* **Configure your bots in the clusters configuration**
+* **Fork and Star this repository**
 * **Deploy to your preferred platform using the buttons below**
+* **Configure your bots in the clusters configuration**
   
 ---
 
