@@ -3,10 +3,11 @@ import sys
 import time
 import logging
 import requests
-import socket
+
 
 DEFAULT_PING_INTERVAL = 240
 MAX_FAILURES = 2
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
@@ -15,21 +16,48 @@ handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
 def get_app_url():
+    """
+    Retrieves the app URL from the environment variable 'APP_URL' or
+    the first command-line argument. If neither is provided, returns None.
+    """
     app_url = os.getenv("APP_URL") or (sys.argv[1] if len(sys.argv) > 1 else None)
-    if not app_url:
-        hostname = socket.gethostname()    
-        local_ip = socket.gethostbyname(hostname)
-        app_url = f"http://{local_ip}"
     return app_url
 
 def get_ping_interval():
+    """
+    Returns the ping interval in seconds from the 'PING_INTERVAL' environment variable.
+    Falls back to DEFAULT_PING_INTERVAL if the environment variable is not set or invalid.
+    """
     try:
         return int(os.getenv("PING_INTERVAL", DEFAULT_PING_INTERVAL))
     except ValueError:
         logging.warning("Invalid PING_INTERVAL value; using default.")
         return DEFAULT_PING_INTERVAL
 
+def get_delay():
+    """
+    Returns the delay in seconds from the 'DELAY' environment variable.
+    Defaults to 300 seconds if not set or if the value is invalid.
+    """
+    try:
+        return int(os.getenv("DELAY", 300))
+    except ValueError:
+        logging.warning("Invalid DELAY value; using default 300 seconds.")
+        return 300
+
+def should_delay_ping():
+    """
+    Determines whether to delay before starting to ping based on the 'DELAY_PING'
+    environment variable. Accepts values like 'True', '1', or 'yes' (case insensitive)
+    as True.
+    """
+    return os.getenv("DELAY_PING", "False").lower() in ("true", "1", "yes")
+
 def ping_url(session, url):
+    """
+    Attempts to ping the specified URL using the provided session.
+    Returns True if the HTTP response status code is 200; otherwise, returns False.
+    """
     try:
         response = session.get(url, timeout=10)
         if response.status_code == 200:
@@ -50,11 +78,17 @@ def main():
     if not app_url:
         logging.error("No app URL provided. Set the 'APP_URL' environment variable or pass the URL as a command-line argument.")
         logger.handlers[0].flush()
-        return
+        sys.exit(1)
     
     ping_interval = get_ping_interval()
     logging.info(f"Starting to ping {app_url} every {ping_interval / 60} minutes...")
     logger.handlers[0].flush()
+    
+    if should_delay_ping():
+        delay_seconds = get_delay()
+        logging.info(f"Delaying start of pinging by {delay_seconds} seconds as per DELAY_PING setting.")
+        logger.handlers[0].flush()
+        time.sleep(delay_seconds)
     
     failure_count = 0
     
