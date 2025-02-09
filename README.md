@@ -87,7 +87,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 * **Docker support is in development**
 * **Keep your tokens and sensitive information secure**
 * **if your Bot has a dependency of packages thats not installed yet, use `install.sh` to install them**
-* **For `FFMPEG` support use the [`Omega`](https://github.com/MysteryDemon/BotClusters/tree/omega) Branch**
+* **For FFMPEG Support add `ffmpeg` to the apt packages in `install.sh`**
 * **GUI login details:**
 
 `Username`
