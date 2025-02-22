@@ -27,4 +27,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 5000
-CMD ["python3", "cluster.py"]
+CMD ["sh", "-c", "python3 update.py && gunicorn --workers=4 --bind=0.0.0.0:8000 --log-level=info --access-logfile=- --error-logfile=- run:app"]
