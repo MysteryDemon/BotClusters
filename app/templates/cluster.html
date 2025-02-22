@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BotClusters GUI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cluster.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/cluster.svg') }}" type="image/svg+xml">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script defer src="{{ url_for('static', filename='js/cluster.js') }}"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Dashboard</h1>
+            <p>⚙ Bots Manager</p>
+        </div>
+
+        <div class="bot-grid" id="bot-grid">
+            <!-- Bot cards will be dynamically populated here -->
+        </div>
+    </div>
+    
+    <div id="log-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Process Logs</h2>
+            <pre id="log-content"></pre>
+        </div>
+    </div>
+
+    <footer id="contact">
+        <div class="container">
+            <p>&copy; 2025 MysteryDemon. All Rights Reserved.</p>
+            <p>Visit me on <a href="https://github.com/mysterydemon" target="_blank">GitHub</a></p>
+        </div>
+    </footer>
+</body>
+</html>
