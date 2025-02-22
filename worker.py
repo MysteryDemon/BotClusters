@@ -15,6 +15,8 @@ import threading
 import re
 from dotenv import load_dotenv
 
+load_dotenv('cluster.env')
+
 LOG_FILE = 'bot_manager.log'
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
