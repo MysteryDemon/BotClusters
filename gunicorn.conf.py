@@ -21,6 +21,7 @@ proc_name = 'gunicorn_flask'
 
 # Server mechanics
 daemon = False
+sendfile = False
 pidfile = None
 umask = 0
 user = None
