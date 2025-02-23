@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger('socketio').setLevel(logging.DEBUG)
 logging.getLogger('engineio').setLevel(logging.DEBUG)
 
-app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 
 socketio = SocketIO(
