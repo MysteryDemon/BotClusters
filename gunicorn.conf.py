@@ -1,10 +1,12 @@
+import os
 import multiprocessing
 
 # Worker class
 worker_class = "gthread"
 
 # Server socket
-bind = '0.0.0.0:5000'
+PORT = os.getenv("PORT", "8000")
+bind = f"0.0.0.0:{PORT}"
 backlog = 2048
 
 # Worker processes
