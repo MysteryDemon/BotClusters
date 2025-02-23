@@ -1,7 +1,7 @@
 import multiprocessing
 
 # Worker class
-worker_class = "eventlet"
+worker_class = "gthread"
 
 # Server socket
 bind = '0.0.0.0:5000'
