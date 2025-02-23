@@ -12,7 +12,6 @@ from functools import wraps
 from app import socketio
 from flask_socketio import emit
 
-
 logger = logging.getLogger(__name__)
 main = Blueprint("main", __name__)
 
@@ -21,6 +20,43 @@ SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 STATUS_CHECK_INTERVAL = 2
 MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
+
+users = {
+    "admin": "password123",
+    "newuser": "newpassword"
+}
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if username in users and users[username] == password:
+            session['logged_in'] = True
+            return redirect(url_for('cluster'))
+        else:
+            flash('Invalid credentials. Please try again.')
+    
+    return render_template('login.html')
+
+@main.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
+
+@main.route('/')
+@login_required
+def cluster():
+    return render_template('cluster.html')
 
 def parse_supervisor_status(status_line):
     """Parse a single line of supervisor status output."""
@@ -113,43 +149,6 @@ def broadcast_status_update():
         logger.error(f"Error broadcasting status update: {str(e)}")
         return False
 
-users = {
-    "admin": "password123",
-    "newuser": "newpassword"
-}
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@main.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        if username in users and users[username] == password:
-            session['logged_in'] = True
-            return redirect(url_for('cluster'))
-        else:
-            flash('Invalid credentials. Please try again.')
-    
-    return render_template('login.html')
-
-@main.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    return redirect(url_for('login'))
-
-@main.route('/')
-@login_required
-def cluster():
-    return render_template('cluster.html')
-
 @main.route('/supervisor/status', methods=['GET'])
 def list_supervisor_processes():
     """Get status of all supervisor processes."""
@@ -162,8 +161,6 @@ def list_supervisor_processes():
                 processes.append(process)
         return jsonify({"status": "success", "processes": processes}), 200
     return jsonify(status), 500
-
-
 
 @main.route('/supervisor/<action>/<process_name>', methods=['POST'])
 def manage_supervisor_process(action, process_name):
