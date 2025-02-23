@@ -13,6 +13,7 @@ worker_class = 'sync'
 worker_connections = 1000
 timeout = 60
 keepalive = 2
+reload = True
 
 # Logging
 accesslog = '-'
