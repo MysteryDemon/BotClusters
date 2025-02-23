@@ -5,7 +5,7 @@ def run_update():
     subprocess.run(["python3", "update.py"])
 
 def run_gunicorn():
-    subprocess.run(["gunicorn", "-k", "eventlet", "-w", "1", "-b", "0.0.0.0:5000", "wsgi:app"])
+    subprocess.run(["gunicorn", "-c", "gunicorn.conf.py", "wsgi:app"])
 
 def run_supervisord():
     subprocess.run(["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"])
@@ -15,7 +15,6 @@ def run_worker():
 
 def run_ping_server():
     subprocess.run(["python3", "ping_server.py"])
-
 
 if __name__ == "__main__":
     update_thread = threading.Thread(target=run_update)
