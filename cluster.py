@@ -6,7 +6,7 @@ def run_update():
     subprocess.run(["python3", "update.py"])
 
 def run_gunicorn():
-    subprocess.run(["gunicorn", "-c", "gunicorn.conf.py", "app:create_app()"])
+    subprocess.run(["gunicorn", "-c", "gunicorn.conf.py", "run:app"])
 
 def run_supervisord():
     subprocess.run(["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"])
