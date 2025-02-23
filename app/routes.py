@@ -312,7 +312,7 @@ def download_supervisor_log(process_name):
                         outfile.write(f.read())
                     outfile.write("\n\n")
                 
-                if stderr_log exists():
+                if stderr_log.exists():
                     outfile.write("=== STDERR LOG ===\n")
                     with stderr_log.open('r') as f:
                         outfile.write(f.read())
