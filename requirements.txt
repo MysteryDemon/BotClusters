@@ -5,7 +5,7 @@ requests
 schedule
 supervisor
 gunicorn==20.1.0
-dnspython==2.2.1
+dnspython==2.4.2
 python-dotenv
 python-socketio==5.4.0
 python-engineio==4.3.0
