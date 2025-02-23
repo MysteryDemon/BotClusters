@@ -21,7 +21,7 @@ if __name__ == "__main__":
     update_thread = threading.Thread(target=run_update)
     update_thread.start()
     update_thread.join()
-    time.sleep(5)
+    time.sleep(2)
 
     gunicorn_thread = threading.Thread(target=run_gunicorn)
     supervisord_thread = threading.Thread(target=run_supervisord)
