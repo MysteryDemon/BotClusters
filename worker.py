@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv('cluster.env')
 
+clusters = load_config("config.json")
+
 # Global Constants
 LOG_FILE = 'bot_manager.log'
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
