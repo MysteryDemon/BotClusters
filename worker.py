@@ -18,8 +18,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv('cluster.env')
 
-clusters = load_config("config.json")
-
 # Global Constants
 LOG_FILE = 'bot_manager.log'
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
@@ -114,6 +112,8 @@ def load_config(file_path):
         raise ValueError("Invalid configuration file.")
 
     return clusters
+    
+clusters = load_config("config.json")
 
 def write_supervisord_config(cluster, command):
     """Write supervisord config and ensure it uses the correct virtual environment."""
