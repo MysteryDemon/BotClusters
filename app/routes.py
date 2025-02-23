@@ -1,5 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
 import os
 import re
 import time
@@ -9,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from flask import Blueprint, request, jsonify, send_file, session, redirect, url_for, flash, render_template
 from functools import wraps
-from app import socketio
+from app import socketio, create_app
 from flask_socketio import emit
 
 logger = logging.getLogger(__name__)
@@ -314,7 +312,7 @@ def download_supervisor_log(process_name):
                         outfile.write(f.read())
                     outfile.write("\n\n")
                 
-                if stderr_log.exists():
+                if stderr_log exists():
                     outfile.write("=== STDERR LOG ===\n")
                     with stderr_log.open('r') as f:
                         outfile.write(f.read())
@@ -343,4 +341,3 @@ def handle_error(e):
         "status": "error",
         "message": "An internal server error occurred"
     }), 500
-
