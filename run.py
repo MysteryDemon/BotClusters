@@ -1,6 +1,8 @@
 import os
 import logging
-from app import app, socketio
+from app import create_app, socketio
+
+app = create_app()
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 os.makedirs(SUPERVISOR_LOG_DIR, exist_ok=True)
