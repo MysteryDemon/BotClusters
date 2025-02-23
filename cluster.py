@@ -5,7 +5,7 @@ def run_update():
     subprocess.run(["python3", "update.py"])
 
 def run_gunicorn():
-    subprocess.run(["gunicorn", "--workers=4", "--bind=0.0.0.0:8000", "--log-level=info", "--access-logfile=-", "--error-logfile=-", "run:app"])
+    subprocess.run(["gunicorn", "-k", "eventlet", "-w", "1", "-b", "0.0.0.0:5000", "wsgi:app"])
 
 def run_supervisord():
     subprocess.run(["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"])
