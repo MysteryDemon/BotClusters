@@ -20,7 +20,34 @@ def handle_disconnect():
 @socketio.on('request_status')
 def handle_status_request():
     """Handle WebSocket request for process status updates."""
-    emit('status_update', {
-        "status": "success",
-        "timestamp": datetime.utcnow().isoformat()
-    })
+    try:
+        status = run_supervisor_command("status")
+        if status["status"] == "success":
+            processes = []
+            for proc in status["message"].splitlines():
+                parsed_proc = parse_supervisor_status(proc)
+                if parsed_proc:
+                    processes.append(parsed_proc)
+            
+            if not processes:
+                logger.warning("No processes found in supervisor status")
+                
+            emit('status_update', {
+                "status": "success",
+                "processes": processes,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+        else:
+            logger.error(f"Error getting supervisor status: {status['message']}")
+            emit('status_update', {
+                "status": "error",
+                "message": status["message"],
+                "processes": []
+            })
+    except Exception as e:
+        logger.error(f"Error in handle_status_request: {str(e)}")
+        emit('status_update', {
+            "status": "error",
+            "message": str(e),
+            "processes": []
+        })
