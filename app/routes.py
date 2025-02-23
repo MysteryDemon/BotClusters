@@ -408,17 +408,3 @@ def handle_error(e):
         "message": "An internal server error occurred"
     }), 500
 
-if __name__ == "__main__":
-    try:
-        os.makedirs(SUPERVISOR_LOG_DIR, exist_ok=True)
-        port = int(os.environ.get("PORT", 5000))
-        socketio.run(
-            app,
-            host="0.0.0.0",
-            port=port,
-            debug=True,
-            use_reloader=False
-        )
-    except Exception as e:
-        logger.error(f"Failed to start application: {str(e)}")
-        raise
