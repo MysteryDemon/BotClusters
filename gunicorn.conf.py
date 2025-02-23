@@ -1,5 +1,8 @@
 import multiprocessing
 
+# Use Eventlet worker for WebSockets support
+worker_class = "eventlet"
+
 # Server socket
 bind = '0.0.0.0:5000'
 backlog = 2048
