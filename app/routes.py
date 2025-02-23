@@ -1,36 +1,20 @@
 import eventlet
 eventlet.monkey_patch()
 import os
-import subprocess
 import re
-from datetime import datetime
-from functools import wraps
-from pathlib import Path
-import logging
 import time
-from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for, session, flash
-from flask_socketio import SocketIO, emit
+import subprocess
+import logging
+from pathlib import Path
+from datetime import datetime
+from flask import Blueprint, request, jsonify, send_file, session, redirect, url_for, flash, render_template
+from functools import wraps
+from app import socketio
+from flask_socketio import emit
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='app.log'
-)
 logger = logging.getLogger(__name__)
-logging.getLogger('socketio').setLevel(logging.DEBUG)
-logging.getLogger('engineio').setLevel(logging.DEBUG)
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(24)
-
-socketio = SocketIO(
-    app,
-    async_mode='eventlet',
-    cors_allowed_origins="*",
-    ping_timeout=60,
-    ping_interval=25
-)
+main = Blueprint("main", __name__)
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
@@ -142,7 +126,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route('/login', methods=['GET', 'POST'])
+@main.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
@@ -156,17 +140,17 @@ def login():
     
     return render_template('login.html')
 
-@app.route('/logout')
+@main.route('/logout')
 def logout():
     session.pop('logged_in', None)
     return redirect(url_for('login'))
 
-@app.route('/')
+@main.route('/')
 @login_required
 def cluster():
     return render_template('cluster.html')
 
-@app.route('/supervisor/status', methods=['GET'])
+@main.route('/supervisor/status', methods=['GET'])
 def list_supervisor_processes():
     """Get status of all supervisor processes."""
     status = run_supervisor_command("status")
@@ -181,7 +165,7 @@ def list_supervisor_processes():
 
 
 
-@app.route('/supervisor/<action>/<process_name>', methods=['POST'])
+@main.route('/supervisor/<action>/<process_name>', methods=['POST'])
 def manage_supervisor_process(action, process_name):
     """Handle process management actions (start/stop/restart)."""
     logger.info(f"Received {action} request for process: {process_name}")
@@ -311,7 +295,7 @@ def manage_supervisor_process(action, process_name):
             "message": f"Error managing process: {str(e)}"
         }), 500
 
-@app.route('/supervisor/log/<process_name>', methods=['GET'])
+@main.route('/supervisor/log/<process_name>', methods=['GET'])
 def download_supervisor_log(process_name):
     """Handle log file download requests."""
     try:
@@ -354,7 +338,7 @@ def download_supervisor_log(process_name):
         logger.error(f"Error accessing log files for {process_name}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.errorhandler(Exception)
+@main.errorhandler(Exception)
 def handle_error(e):
     """Global error handler"""
     logger.error(f"Unhandled error: {str(e)}")
