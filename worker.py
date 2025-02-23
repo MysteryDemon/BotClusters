@@ -10,15 +10,16 @@ import argparse
 import random
 from pathlib import Path
 from phrase import WORD_LIST
-from logging.handlers import RotatingFileHandler
+from dotenv import load_dotenv
 import threading
 import re
-from dotenv import load_dotenv
 
 load_dotenv('cluster.env')
 
 LOG_FILE = 'bot_manager.log'
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
+APP_DIR = Path("/app")
+PIP_CACHE_DIR = APP_DIR / "pip_cache"
 
 logging.basicConfig(
     filename=LOG_FILE,
@@ -67,7 +68,6 @@ def validate_config(clusters):
     logging.info("Configuration validation successful.")
     return True
 
-
 def load_config(file_path):
     """Load bot configurations from a JSON file."""
     logging.info(f'Loading configuration from {file_path}')
@@ -114,33 +114,36 @@ load_dotenv()
 clusters = load_config("config.json")
 
 def write_supervisord_config(cluster, command):
-    """Write a supervisord config for the bot."""
-    config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
+    """Write a supervisord config for the bot inside its virtual environment."""
+    bot_name = cluster['bot_number'].replace(" ", "_")
+    venv_path = APP_DIR / bot_name / "venv"
+    config_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_name}.conf"
+    
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
 
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
 
     config_content = f"""
-[program:{cluster['bot_number'].replace(' ', '_')}]
-command={command}
-directory=/app/{cluster['bot_number'].replace(' ', '_')}
+[program:{bot_name}]
+command={venv_path}/bin/python {command}
+directory={APP_DIR}/{bot_name}
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
-stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
-{f"environment={env_vars}" if env_vars else ""}
+stderr_logfile=/var/log/supervisor/{bot_name}_err.log
+stdout_logfile=/var/log/supervisor/{bot_name}_out.log
+environment={env_vars},VIRTUAL_ENV="{venv_path}",PATH="{venv_path}/bin:$PATH"
 """
 
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
 def start_bot(cluster):
-    """Clone, set up, and start a bot."""
+    """Clone, set up, and start a bot with virtual environments."""
     with bot_lock:
         logging.info(f'Starting bot: {cluster["bot_number"]}')
-        bot_env = os.environ.copy()
-        bot_env.update(cluster.get('env', {}))
-        bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
+        bot_name = cluster['bot_number'].replace(" ", "_")
+        bot_dir = APP_DIR / bot_name
+        venv_dir = bot_dir / "venv"
         requirements_file = bot_dir / 'requirements.txt'
         bot_file = bot_dir / cluster['run_command']
         branch = cluster.get('branch', 'main')
@@ -153,11 +156,18 @@ def start_bot(cluster):
             logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
             subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
 
-            if requirements_file.exists():
-                logging.info(f'Installing requirements for {cluster["bot_number"]}')
-                subprocess.run(['pip', 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
+            if not venv_dir.exists():
+                logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
+                subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
 
-            command = f"bash {bot_file}" if bot_file.suffix == ".sh" else f"python3 {bot_file}"
+            pip_exec = str(venv_dir / "bin" / "pip")
+            python_exec = str(venv_dir / "bin" / "python")
+
+            if requirements_file.exists():
+                logging.info(f'Installing dependencies for {cluster["bot_number"]}')
+                subprocess.run([pip_exec, 'install', '--cache-dir', str(PIP_CACHE_DIR), '-r', str(requirements_file)], check=True)
+
+            command = str(bot_file)
             write_supervisord_config(cluster, command)
             reload_supervisord()
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
@@ -175,49 +185,11 @@ def reload_supervisord():
     except subprocess.CalledProcessError as e:
         logging.error(f"Error reloading supervisord: {e}")
 
-def stop_bot(bot_number):
-    """Stop and remove a bot's supervisord configuration."""
-    logging.info(f"Stopping bot: {bot_number}")
-    bot_conf_name = bot_number.replace(" ", "_")
-    
-    try:
-        subprocess.run(["supervisorctl", "stop", bot_conf_name], check=False)
-    except subprocess.CalledProcessError:
-        logging.error(f"Failed to stop bot {bot_number}")
-
-    conf_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
-    if conf_path.exists():
-        conf_path.unlink()
-        logging.info(f"Removed supervisord configuration for {bot_number}.")
-    reload_supervisord()
-
-def restart_all_bots():
-    """Restart all bots managed by the system."""
-    logging.info('Restarting all bots...')
-    for cluster in clusters:
-        stop_bot(cluster['bot_number'])
-    reload_supervisord()
-
-def signal_handler(sig, frame):
-    logging.info('Shutting down...')
-    restart_all_bots()
-    exit(0)
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
 def main():
-    parser = argparse.ArgumentParser(description='Bot Manager')
-    parser.add_argument('--restart', action='store_true', help='Restart all bots')
-    args = parser.parse_args()
-
-    if args.restart:
-        restart_all_bots()
-    else:
-        logging.info('Starting bot manager...')
-        with ThreadPoolExecutor(max_workers=len(clusters)) as executor:
-            for cluster in clusters:
-                executor.submit(start_bot, cluster)
+    logging.info('Starting bot manager...')
+    with ThreadPoolExecutor(max_workers=len(clusters)) as executor:
+        for cluster in clusters:
+            executor.submit(start_bot, cluster)
 
 if __name__ == "__main__":
     main()
