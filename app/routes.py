@@ -1,60 +1,43 @@
-import os
-import re
-import time
-import subprocess
-import logging
-from pathlib import Path
-from datetime import datetime
-from flask import Blueprint, request, jsonify, send_file, session, redirect, url_for, flash, render_template
-from functools import wraps
-from app import socketio, create_app
-from flask_socketio import emit
 
+import eventlet
+eventlet.monkey_patch()
+import os
+import subprocess
+import re
+from datetime import datetime
+from functools import wraps
+from pathlib import Path
+import logging
+import time
+from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for, session, flash
+from flask_socketio import SocketIO, emit
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='app.log'
+)
 logger = logging.getLogger(__name__)
-main = Blueprint("main", __name__)
+logging.getLogger('socketio').setLevel(logging.DEBUG)
+logging.getLogger('engineio').setLevel(logging.DEBUG)
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(24)
+
+socketio = SocketIO(
+    app,
+    async_mode='eventlet',
+    cors_allowed_origins="*",
+    ping_timeout=60,
+    ping_interval=25
+)
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 STATUS_CHECK_INTERVAL = 2
 MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
-
-users = {
-    "admin": "password123",
-    "newuser": "newpassword"
-}
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@main.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        if username in users and users[username] == password:
-            session['logged_in'] = True
-            return redirect(url_for('cluster'))
-        else:
-            flash('Invalid credentials. Please try again.')
-    
-    return render_template('login.html')
-
-@main.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    return redirect(url_for('login'))
-
-@main.route('/')
-@login_required
-def cluster():
-    return render_template('cluster.html')
 
 def parse_supervisor_status(status_line):
     """Parse a single line of supervisor status output."""
@@ -147,7 +130,44 @@ def broadcast_status_update():
         logger.error(f"Error broadcasting status update: {str(e)}")
         return False
 
-@main.route('/supervisor/status', methods=['GET'])
+users = {
+    "admin": "password123",
+    "newuser": "newpassword"
+}
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if username in users and users[username] == password:
+            session['logged_in'] = True
+            return redirect(url_for('cluster'))
+        else:
+            flash('Invalid credentials. Please try again.')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
+
+@app.route('/')
+@login_required
+def cluster():
+    return render_template('cluster.html')
+
+@app.route('/supervisor/status', methods=['GET'])
 def list_supervisor_processes():
     """Get status of all supervisor processes."""
     status = run_supervisor_command("status")
@@ -160,7 +180,54 @@ def list_supervisor_processes():
         return jsonify({"status": "success", "processes": processes}), 200
     return jsonify(status), 500
 
-@main.route('/supervisor/<action>/<process_name>', methods=['POST'])
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection."""
+    logger.info("Client connected")
+    emit('connected', {'data': 'Connected'})
+    broadcast_status_update()
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection."""
+    logger.info("Client disconnected")
+
+@socketio.on('request_status')
+def handle_status_request():
+    """Handle WebSocket request for process status updates."""
+    try:
+        status = run_supervisor_command("status")
+        if status["status"] == "success":
+            processes = []
+            for proc in status["message"].splitlines():
+                parsed_proc = parse_supervisor_status(proc)
+                if parsed_proc:
+                    processes.append(parsed_proc)
+            
+            if not processes:
+                logger.warning("No processes found in supervisor status")
+                
+            emit('status_update', {
+                "status": "success",
+                "processes": processes,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+        else:
+            logger.error(f"Error getting supervisor status: {status['message']}")
+            emit('status_update', {
+                "status": "error",
+                "message": status["message"],
+                "processes": []
+            })
+    except Exception as e:
+        logger.error(f"Error in handle_status_request: {str(e)}")
+        emit('status_update', {
+            "status": "error",
+            "message": str(e),
+            "processes": []
+        })
+
+@app.route('/supervisor/<action>/<process_name>', methods=['POST'])
 def manage_supervisor_process(action, process_name):
     """Handle process management actions (start/stop/restart)."""
     logger.info(f"Received {action} request for process: {process_name}")
@@ -290,7 +357,7 @@ def manage_supervisor_process(action, process_name):
             "message": f"Error managing process: {str(e)}"
         }), 500
 
-@main.route('/supervisor/log/<process_name>', methods=['GET'])
+@app.route('/supervisor/log/<process_name>', methods=['GET'])
 def download_supervisor_log(process_name):
     """Handle log file download requests."""
     try:
@@ -333,7 +400,7 @@ def download_supervisor_log(process_name):
         logger.error(f"Error accessing log files for {process_name}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@main.errorhandler(Exception)
+@app.errorhandler(Exception)
 def handle_error(e):
     """Global error handler"""
     logger.error(f"Unhandled error: {str(e)}")
