@@ -2,7 +2,7 @@ import os
 import multiprocessing
 
 # Worker class
-worker_class = "gthread"
+worker_class = "eventlet"
 
 # Server socket
 PORT = os.getenv("PORT", "5000")
@@ -10,7 +10,7 @@ bind = f"0.0.0.0:{PORT}"
 backlog = 2048
 
 # Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1 
+workers = 1 
 worker_class = 'sync'
 worker_connections = 1000
 timeout = 60
