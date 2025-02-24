@@ -48,7 +48,7 @@ def validate_config(clusters):
             logging.error(f"Missing required fields in: {cluster.get('name', 'Unknown')}")
             return False
 
-        if not cluster['git_url'].startsWith('http'):
+        if not cluster['git_url'].startswith('http'):
             logging.error(f"Invalid git_url for {cluster['name']}.")
             return False
 
@@ -109,7 +109,8 @@ def load_config(file_path):
 
     return clusters
 
-load_dotenv()
+load_dotenv('cluster.env', overide=True)
+
 clusters = load_config("config.json")
 
 def write_supervisord_config(cluster, command):
