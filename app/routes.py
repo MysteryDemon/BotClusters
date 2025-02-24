@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 import os
 import subprocess
 import re
