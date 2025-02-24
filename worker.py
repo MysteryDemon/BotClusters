@@ -165,9 +165,8 @@ def start_bot(cluster):
                 logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
                 subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-            #command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             if bot_file.suffix == ".sh":
-                command = f"/bin/bash -c 'source {venv_dir}/bin/activate/{bot_file}'"
+                command = f"/bin/bash -c 'source {venv_dir}/bin/activate && {bot_file}'"
             else:
                 command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
 
