@@ -157,21 +157,39 @@ def start_bot(cluster):
             logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
             subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
 
-            # Create virtual environment
-            logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-            subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
+            if bot_file.suffix == ".sh":
+                command = f"bash {bot_file}"
+            else:
+                # Create virtual environment
+                logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
+                subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
 
-            if requirements_file.exists():
-                logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
-                subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
+                if requirements_file.exists():
+                    logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
+                    subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-            command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+                if bot_file.suffix == ".py":
+                    command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+                else:
+                    command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
+
             write_supervisord_config(cluster, command)
             asyncio.run(reload_supervisord())
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
 
         except subprocess.CalledProcessError as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
+
+def sort_bot_run_commands(clusters):
+    """Sort and start bots based on their run command types."""
+    for cluster in clusters:
+        run_command = cluster['run_command']
+        if not run_command.endswith('.sh'):
+            logging.info(f"Setting up isolated venv environment for {cluster['bot_number']}")
+            start_bot(cluster)
+        else:
+            logging.info(f"Installing normally for {cluster['bot_number']}")
+            start_bot(cluster)
 
 async def async_supervisorctl(command):
     proc = await asyncio.create_subprocess_shell(
@@ -235,7 +253,7 @@ async def main_async():
         await reload_supervisord()
     else:
         logging.info('Starting bot manager...')
-        await asyncio.gather(*(asyncio.to_thread(start_bot, cluster) for cluster in clusters))
+        sort_bot_run_commands(clusters)
 
 if __name__ == "__main__":
     asyncio.run(main_async())
