@@ -7,6 +7,9 @@ flask==2.0.1
 requests
 schedule
 supervisor
+aiofiles 
+watchdog 
+psutil
 python-dotenv
 python-socketio==5.4.0
 python-engineio==4.3.0
