@@ -2,6 +2,7 @@ flask-socketio==5.1.1
 eventlet==0.33.1
 dnspython==2.2.1
 uvicorn
+uvloop
 flask==2.0.1
 requests
 schedule
