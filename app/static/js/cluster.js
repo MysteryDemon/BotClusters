@@ -7,9 +7,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Socket.IO with reconnection options
     socket = io({
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: MAX_RECONNECT_ATTEMPTS
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        reconnectionAttempts: infinity
     });
     
     socket.on('connect', function() {
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up periodic status updates
         if (updateInterval) clearInterval(updateInterval);
-        updateInterval = setInterval(requestStatus, 5000); // Update every 5 seconds
+        updateInterval = setInterval(requestStatus, 1000); // Update every 5 seconds
     });
 
     socket.on('disconnect', function() {
