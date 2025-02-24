@@ -18,9 +18,8 @@ if __name__ == "__main__":
             app,
             host="0.0.0.0",
             port=port,
-            debug=False,    
-            use_reloader=False,
-            allow_unsafe_werkzeug=True
+            debug=True,    
+            use_reloader=False
         )
 
     except Exception as e:
