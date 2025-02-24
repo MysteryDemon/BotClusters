@@ -114,14 +114,18 @@ def load_config(file_path):
 load_dotenv('cluster.env', override=True)
 clusters = load_config("config.json")
 
-def write_supervisord_config(cluster, command):
+def write_supervisord_config(cluster, command, venv_dir):
     """Write a supervisord config for the bot."""
-    config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
+    config_path = venv_dir / 'supervisord.conf'
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
 
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
 
     config_content = f"""
+    [supervisord]
+    logfile={venv_dir}/supervisord.log
+    pidfile={venv_dir}/supervisord.pid
+
     [program:{cluster['bot_number'].replace(' ', '_')}]
     command={command}
     directory=/app/{cluster['bot_number'].replace(' ', '_')}
@@ -170,16 +174,23 @@ def start_bot(cluster):
             else:
                 command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
 
-            write_supervisord_config(cluster, command)
-            asyncio.run(reload_supervisord())
+            write_supervisord_config(cluster, command, venv_dir)
+            start_supervisord(venv_dir)
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
 
         except subprocess.CalledProcessError as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
 
-async def async_supervisorctl(command):
+def start_supervisord(venv_dir):
+    """Start supervisord within the virtual environment."""
+    logging.info(f"Starting supervisord in {venv_dir}")
+    supervisord_path = venv_dir / 'bin' / 'supervisord'
+    config_path = venv_dir / 'supervisord.conf'
+    subprocess.run([supervisord_path, '-c', str(config_path)], check=True)
+
+async def async_supervisorctl(command, venv_dir):
     proc = await asyncio.create_subprocess_shell(
-        command,
+        f"{venv_dir}/bin/supervisorctl {command}",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
@@ -189,36 +200,38 @@ async def async_supervisorctl(command):
     else:
         logging.info(f"Supervisorctl command succeeded: {stdout.decode()}")
 
-async def reload_supervisord():
+async def reload_supervisord(venv_dir):
     """Reload and update supervisord after modifying configurations."""
     logging.info("Reloading supervisord...")
-    await async_supervisorctl("supervisorctl reread")
-    await async_supervisorctl("supervisorctl update")
+    await async_supervisorctl("reread", venv_dir)
+    await async_supervisorctl("update", venv_dir)
     logging.info("Supervisord updated successfully.")
 
 def stop_bot(bot_number):
     """Stop and remove a bot's supervisord configuration."""
     logging.info(f"Stopping bot: {bot_number}")
     bot_conf_name = bot_number.replace(" ", "_")
+    venv_dir = Path('/app') / bot_number.replace(" ", "_") / 'venv'
     
     try:
-        subprocess.run(["supervisorctl", "stop", bot_conf_name], check=False)
+        subprocess.run([f"{venv_dir}/bin/supervisorctl", "stop", bot_conf_name], check=False)
         time.sleep(5)  # Wait for the bot to shutdown gracefully
     except subprocess.CalledProcessError:
         logging.error(f"Failed to stop bot {bot_number}")
 
-    conf_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
+    conf_path = venv_dir / 'supervisord.conf'
     if conf_path.exists():
         conf_path.unlink()
         logging.info(f"Removed supervisord configuration for {bot_number}.")
-    asyncio.run(reload_supervisord())
+    asyncio.run(reload_supervisord(venv_dir))
 
 def restart_all_bots():
     """Restart all bots managed by the system."""
     logging.info('Restarting all bots...')
     for cluster in clusters:
         stop_bot(cluster['bot_number'])
-    asyncio.run(reload_supervisord())
+    for cluster in clusters:
+        start_bot(cluster)
 
 def signal_handler(sig, frame):
     logging.info('Shutting down...')
@@ -235,8 +248,10 @@ async def main_async():
 
     if args.restart:
         logging.info('Restarting bot manager...')
-        await asyncio.gather(*(async_supervisorctl(f"supervisorctl stop {cluster['bot_number'].replace(' ', '_')}") for cluster in clusters))
-        await reload_supervisord()
+        for cluster in clusters:
+            await async_supervisorctl(f"stop {cluster['bot_number'].replace(' ', '_')}", Path('/app') / cluster['bot_number'].replace(" ", "_") / 'venv')
+        for cluster in clusters:
+            start_bot(cluster)
     else:
         logging.info('Starting bot manager...')
         await asyncio.gather(*(asyncio.to_thread(start_bot, cluster) for cluster in clusters))
