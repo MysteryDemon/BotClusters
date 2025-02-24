@@ -14,13 +14,16 @@ from logging.handlers import RotatingFileHandler
 import threading
 import re
 from dotenv import load_dotenv
+import asyncio
 
 LOG_FILE = 'bot_manager.log'
+LOG_SIZE = 10 * 1024 * 1024  # 10 MB
+LOG_BACKUP_COUNT = 5
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
 logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.DEBUG, 
+    handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)],
+    level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
@@ -64,7 +67,6 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
-
 
 def load_config(file_path):
     """Load bot configurations from a JSON file."""
@@ -163,21 +165,30 @@ def start_bot(cluster):
 
             command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             write_supervisord_config(cluster, command)
-            reload_supervisord()
+            asyncio.run(reload_supervisord())
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
 
         except subprocess.CalledProcessError as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
 
-def reload_supervisord():
+async def async_supervisorctl(command):
+    proc = await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        logging.error(f"Supervisorctl command failed: {stderr.decode()}")
+    else:
+        logging.info(f"Supervisorctl command succeeded: {stdout.decode()}")
+
+async def reload_supervisord():
     """Reload and update supervisord after modifying configurations."""
     logging.info("Reloading supervisord...")
-    try:
-        subprocess.run(["supervisorctl", "reread"], check=True)
-        subprocess.run(["supervisorctl", "update"], check=True)
-        logging.info("Supervisord updated successfully.")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error reloading supervisord: {e}")
+    await async_supervisorctl("supervisorctl reread")
+    await async_supervisorctl("supervisorctl update")
+    logging.info("Supervisord updated successfully.")
 
 def stop_bot(bot_number):
     """Stop and remove a bot's supervisord configuration."""
@@ -186,6 +197,7 @@ def stop_bot(bot_number):
     
     try:
         subprocess.run(["supervisorctl", "stop", bot_conf_name], check=False)
+        time.sleep(5)  # Wait for the bot to shutdown gracefully
     except subprocess.CalledProcessError:
         logging.error(f"Failed to stop bot {bot_number}")
 
@@ -193,14 +205,14 @@ def stop_bot(bot_number):
     if conf_path.exists():
         conf_path.unlink()
         logging.info(f"Removed supervisord configuration for {bot_number}.")
-    reload_supervisord()
+    asyncio.run(reload_supervisord())
 
 def restart_all_bots():
     """Restart all bots managed by the system."""
     logging.info('Restarting all bots...')
     for cluster in clusters:
         stop_bot(cluster['bot_number'])
-    reload_supervisord()
+    asyncio.run(reload_supervisord())
 
 def signal_handler(sig, frame):
     logging.info('Shutting down...')
@@ -210,18 +222,18 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-def main():
+async def main_async():
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
 
     if args.restart:
-        restart_all_bots()
+        logging.info('Restarting bot manager...')
+        await asyncio.gather(*(async_supervisorctl(f"supervisorctl stop {cluster['bot_number'].replace(' ', '_')}") for cluster in clusters))
+        await reload_supervisord()
     else:
         logging.info('Starting bot manager...')
-        with ThreadPoolExecutor(max_workers=len(clusters)) as executor:
-            for cluster in clusters:
-                executor.submit(start_bot, cluster)
+        await asyncio.gather(*(asyncio.to_thread(start_bot, cluster) for cluster in clusters))
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main_async())
