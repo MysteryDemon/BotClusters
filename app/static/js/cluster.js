@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('disconnect', function() {
         console.log('Disconnected from server');
         if (updateInterval) clearInterval(updateInterval);
+        // Auto-reload the page on disconnection without showing a popup
+        setTimeout(function() {
+            location.reload();
+        }, 2000); // Reload after 2 seconds
     });
 
     socket.on('connect_error', function(error) {
