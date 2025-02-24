@@ -11,10 +11,10 @@ import random
 from pathlib import Path
 from phrase import WORD_LIST
 from logging.handlers import RotatingFileHandler
-import threading
 import re
 from dotenv import load_dotenv
 import asyncio
+from asyncio import Lock
 
 LOG_FILE = 'bot_manager.log'
 LOG_FILE_MAX_SIZE = 5 * 1024 * 1024  # 5 MB
@@ -28,7 +28,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-bot_lock = threading.Lock()
+bot_lock = Lock()
 
 def generate_prefix():
     """Generate a random prefix for bot naming."""
