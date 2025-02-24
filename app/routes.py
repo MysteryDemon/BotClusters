@@ -62,7 +62,7 @@ def parse_supervisor_status(status_line):
         logger.error(f"Error parsing supervisor status line: {e}")
     return None
 
-def run_supervisor_command(command, process_name=None, timeout=30, venv_path=None):
+def run_supervisor_command(command, process_name=None, timeout=30):
     """Execute a supervisord command with proper error handling and process isolation."""
     try:
         cmd = ["supervisorctl"]
@@ -70,21 +70,14 @@ def run_supervisor_command(command, process_name=None, timeout=30, venv_path=Non
             cmd.append(command)
         if process_name:
             cmd.append(process_name)
+
+        logger.info(f"Executing supervisor command: {' '.join(cmd)}")
         
-        env = os.environ.copy()
-        if venv_path:
-            # Activate the virtual environment
-            env["VIRTUAL_ENV"] = str(venv_path)
-            env["PATH"] = f"{venv_path}/bin:{env['PATH']}"
-
-        logger.info(f"Executing supervisor command: {' '.join(cmd)} with venv: {venv_path}")
-
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=timeout,
-            env=env
+            timeout=timeout
         )
 
         if result.stdout:
@@ -104,10 +97,10 @@ def run_supervisor_command(command, process_name=None, timeout=30, venv_path=Non
         logger.error(f"Error executing supervisor command: {str(e)}")
         return {"status": "error", "message": str(e)}
 
-def verify_process_status(process_name, expected_status=None, venv_path=None):
+def verify_process_status(process_name, expected_status=None):
     """Verify the status of a specific process."""
     try:
-        result = run_supervisor_command("status", process_name, venv_path=venv_path)
+        result = run_supervisor_command("status", process_name)
         if result["status"] == "success":
             if expected_status:
                 return expected_status in result["message"]
@@ -117,11 +110,11 @@ def verify_process_status(process_name, expected_status=None, venv_path=None):
         logger.error(f"Error verifying process status: {str(e)}")
         return None
 
-def broadcast_status_update(venv_path=None):
+def broadcast_status_update():
     """Broadcast current status to all connected clients."""
     try:
         with app.app_context():
-            status = run_supervisor_command("status", venv_path=venv_path)
+            status = run_supervisor_command("status")
             if status["status"] == "success":
                 processes = [
                     parse_supervisor_status(proc) 
@@ -180,8 +173,7 @@ def cluster():
 @app.route('/supervisor/status', methods=['GET'])
 def list_supervisor_processes():
     """Get status of all supervisor processes."""
-    venv_path = Path("/path/to/your/venv")
-    status = run_supervisor_command("status", venv_path=venv_path)
+    status = run_supervisor_command("status")
     if status["status"] == "success":
         processes = []
         for line in status["message"].splitlines():
@@ -196,8 +188,7 @@ def handle_connect():
     """Handle client connection."""
     logger.info("Client connected")
     emit('connected', {'data': 'Connected'})
-    venv_path = Path("/path/to/your/venv")
-    broadcast_status_update(venv_path)
+    broadcast_status_update()
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -208,8 +199,7 @@ def handle_disconnect():
 def handle_status_request():
     """Handle WebSocket request for process status updates."""
     try:
-        venv_path = Path("/path/to/your/venv")
-        status = run_supervisor_command("status", venv_path=venv_path)
+        status = run_supervisor_command("status")
         if status["status"] == "success":
             processes = []
             for proc in status["message"].splitlines():
@@ -252,8 +242,7 @@ def manage_supervisor_process(action, process_name):
         return jsonify({"status": "error", "message": "Invalid process name"}), 400
     
     try:
-        venv_path = Path("/path/to/your/venv")
-        initial_status = verify_process_status(process_name, venv_path=venv_path)
+        initial_status = verify_process_status(process_name)
         if initial_status is None:
             return jsonify({
                 "status": "error", 
@@ -269,7 +258,7 @@ def manage_supervisor_process(action, process_name):
                     "message": f"Process {process_name} is not running"
                 }), 400
                 
-            result = run_supervisor_command("stop", process_name, venv_path=venv_path)
+            result = run_supervisor_command("stop", process_name)
             expected_status = "STOPPED"
             
             if result["status"] == "success":
@@ -297,7 +286,7 @@ def manage_supervisor_process(action, process_name):
                     
                     del TEMP_SUPERVISOR_CONFIGS[process_name]
                 
-                result = run_supervisor_command("start", process_name, venv_path=venv_path)
+                result = run_supervisor_command("start", process_name)
                 expected_status = "RUNNING"
                 
             except Exception as e:
@@ -313,7 +302,7 @@ def manage_supervisor_process(action, process_name):
                     with open(config_path, 'r') as f:
                         current_config = f.read()
                     
-                    result = run_supervisor_command("stop", process_name, venv_path=venv_path)
+                    result = run_supervisor_command("stop", process_name)
                     if result["status"] == "success":
                         config_path.unlink() 
                         subprocess.run(["supervisorctl", "reread"], check=True)
@@ -323,7 +312,7 @@ def manage_supervisor_process(action, process_name):
                             f.write(current_config)
                         subprocess.run(["supervisorctl", "reread"], check=True)
                         subprocess.run(["supervisorctl", "update"], check=True)
-                        result = run_supervisor_command("start", process_name, venv_path=venv_path)
+                        result = run_supervisor_command("start", process_name)
                         expected_status = "RUNNING"
                         
                 else:
@@ -343,17 +332,17 @@ def manage_supervisor_process(action, process_name):
             return jsonify(result), 500
         for _ in range(MAX_STATUS_CHECK_ATTEMPTS):
             time.sleep(STATUS_CHECK_INTERVAL)
-            current_status = verify_process_status(process_name, venv_path=venv_path)
+            current_status = verify_process_status(process_name)
             
             if action == "stop" and current_status is None:
-                broadcast_status_update(venv_path)
+                broadcast_status_update()
                 return jsonify({
                     "status": "success",
                     "message": f"Successfully stopped {process_name}"
                 }), 200
             
             if current_status and expected_status in current_status:
-                broadcast_status_update(venv_path)
+                broadcast_status_update()
                 return jsonify({
                     "status": "success",
                     "message": f"Successfully {action}ed {process_name}"
