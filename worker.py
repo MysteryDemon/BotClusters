@@ -126,6 +126,7 @@ command={command}
 directory=/app/{cluster['bot_number'].replace(' ', '_')}
 autostart=true
 autorestart=true
+startretries=10
 stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
 stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
 {f"environment={env_vars}" if env_vars else ""}
