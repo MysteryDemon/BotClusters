@@ -169,6 +169,7 @@ def start_bot(cluster):
                     subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '--force-reinstall', '-r', str(requirements_file)], check=True)
 
             #command = f"bash {venv_dir / 'bin' /} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+            subprocess.run(["chmod", "+x", str(bot_file)], check=True)
             command = (f"bash -c 'source {venv_dir / 'bin' / 'activate'} && {bot_file}'" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}")
 
             write_supervisord_config(cluster, command)
