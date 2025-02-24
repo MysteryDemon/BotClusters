@@ -140,8 +140,10 @@ def execute_python_commands_from_sh(file_path, venv_path=None):
     """Execute Python commands from a .sh file, optionally within a virtual environment."""
     
     # Log the execution of commands
-    logging.info(f"Reading and executing commands from {file_path}")
-    
+    logging.info(f"Reading and constructing commands from {file_path}")
+
+    commands = []
+
     # Open the .sh file and read commands
     try:
         with open(file_path, 'r') as file:
@@ -150,22 +152,26 @@ def execute_python_commands_from_sh(file_path, venv_path=None):
                 
                 # Check if the line contains a Python command
                 if line.startswith("python3"):
-                    logging.info(f"Executing command: {line}")
+                    logging.info(f"Adding command: {line}")
                     
                     # If a virtual environment is provided, modify the command
                     if venv_path:
-                        # Make sure to activate the virtual environment
                         python_executable = os.path.join(venv_path, 'bin', 'python3')
                         command = line.replace('python3', python_executable)
                     else:
                         command = line
                     
-                    try:
-                        subprocess.run(command.split(), check=True)
-                    except subprocess.CalledProcessError as e:
-                        logging.error(f"Error executing command {line}: {e}")
+                    commands.append(command)
                 else:
                     logging.info(f"Skipping non-Python command: {line}")
+
+        # Join commands with '&&' to run them in parallel
+        final_command = ' && '.join(commands)
+        logging.info(f"Final command to execute: {final_command}")
+
+        # Execute the final combined command
+        subprocess.run(final_command, shell=True, check=True)
+
     except Exception as e:
         logging.error(f"Error reading the file {file_path}: {e}")
 
