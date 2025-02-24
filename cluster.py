@@ -3,13 +3,11 @@ import threading
 import time
 import os
 
-port = os.environ.get("PORT", 5000)
-
 def run_update():
     subprocess.run(["python3", "update.py"])
 
 def run_gunicorn():
-    subprocess.run(["uvicorn", "run:app", "--host", "0.0.0.0", "--port", str(port), "--workers", "2", "--loop", "uvloop", "--http", "h11"])
+    subprocess.run(["uvicorn", "run:app", "--host", "0.0.0.0", "--port", str(os.environ.get("PORT", 5000)), "--workers", "2", "--loop", "uvloop", "--http", "h11"], check=True)
 
 def run_supervisord():
     subprocess.run(["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"])
