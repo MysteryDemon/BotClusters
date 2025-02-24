@@ -136,6 +136,19 @@ def write_supervisord_config(cluster, command):
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
+def execute_python_commands_from_sh(file_path):
+    """Execute python commands from a .sh file."""
+    logging.info(f"Reading and executing commands from {file_path}")
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("python3"):
+                logging.info(f"Executing command: {line}")
+                try:
+                    subprocess.run(line.split(), check=True)
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"Error executing command {line}: {e}")
+
 def start_bot(cluster):
     """Clone, set up, and start a bot."""
     with bot_lock:
@@ -165,10 +178,13 @@ def start_bot(cluster):
                 logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
                 subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-            command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
-            write_supervisord_config(cluster, command)
-            asyncio.run(reload_supervisord())
-            logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
+            if bot_file.suffix == ".sh":
+                execute_python_commands_from_sh(bot_file)
+            else:
+                command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+                write_supervisord_config(cluster, command)
+                asyncio.run(reload_supervisord())
+                logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
 
         except subprocess.CalledProcessError as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
