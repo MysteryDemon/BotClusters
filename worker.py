@@ -167,7 +167,7 @@ def start_bot(cluster):
 
             #command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             if bot_file.suffix == ".sh":
-                command = f"/bin/bash -c 'source {venv_dir}/bin/activate && bash {bot_file}'"
+                command = f"/bin/bash -c 'source {venv_dir}/bin/activate && exec bash {bot_file}'"
             else:
                 command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
 
