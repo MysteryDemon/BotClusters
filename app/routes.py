@@ -32,8 +32,8 @@ socketio = SocketIO(
     app,
     async_mode='eventlet',
     cors_allowed_origins="*",
-    ping_timeout=60,
-    ping_interval=25
+    ping_timeout=50,
+    ping_interval=120
 )
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
