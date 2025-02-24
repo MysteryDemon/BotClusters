@@ -178,13 +178,16 @@ async def reload_supervisord():
     await asyncio.create_subprocess_exec("supervisorctl", "reread")
     await asyncio.create_subprocess_exec("supervisorctl", "update")
 
+async def start_all_bots():
+    await asyncio.gather(*(start_bot(cluster) for cluster in clusters))
+
 def main():
     load_dotenv()
     load_config("config.json")
     start_config_watcher()
-
+    
     logging.info('Starting bot manager...')
-    asyncio.run(asyncio.gather(*[start_bot(cluster) for cluster in clusters]))
+    asyncio.run(start_all_bots())  # Ensure we pass a proper coroutine to asyncio.run()
 
 if __name__ == "__main__":
     main()
