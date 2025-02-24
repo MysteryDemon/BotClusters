@@ -16,11 +16,13 @@ import re
 from dotenv import load_dotenv
 import asyncio
 
+# Constants
 LOG_FILE = 'bot_manager.log'
 LOG_SIZE = 10 * 1024 * 1024  # 10 MB
 LOG_BACKUP_COUNT = 5
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
+# Logging setup
 logging.basicConfig(
     handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)],
     level=logging.DEBUG,
@@ -110,7 +112,6 @@ def load_config(file_path):
     return clusters
 
 load_dotenv('cluster.env', override=True)
-
 clusters = load_config("config.json")
 
 def write_supervisord_config(cluster, command):
@@ -155,6 +156,8 @@ def start_bot(cluster):
 
             logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
             subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
+
+            # Create virtual environment
             logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
             subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
 
@@ -162,17 +165,7 @@ def start_bot(cluster):
                 logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
                 subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-                # Verify all dependencies are installed
-                missing_dependencies = subprocess.run([str(venv_dir / 'bin' / 'pip'), 'check'], capture_output=True, text=True)
-                if missing_dependencies.returncode != 0:
-                    logging.info(f'Reinstalling missing dependencies for {cluster["bot_number"]}')
-                    subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '--force-reinstall', '-r', str(requirements_file)], check=True)
-
-            if bot_file.suffix == ".sh":
-                command = f"{venv_dir / 'bin' / 'python3'} -c 'import subprocess; subprocess.run([\"bash\", \"{bot_file}\"])'"
-            else:
-                command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
-
+            command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             write_supervisord_config(cluster, command)
             asyncio.run(reload_supervisord())
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
