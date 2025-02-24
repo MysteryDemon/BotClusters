@@ -126,7 +126,7 @@ autostart=true
 autorestart=true
 stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
 stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
-environment=PATH="{venv_bin_path}:$PATH"{"," if env_vars else ""}{env_vars}
+{f"environment={env_vars}" if env_vars else ""}
 """
 
     config_path.write_text(config_content.strip())
