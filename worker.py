@@ -162,17 +162,7 @@ def start_bot(cluster):
                 logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
                 subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-            # Ensure bash is available in the virtual environment
-            post_setup_script = f"""
-            #!/bin/bash
-            source {venv_dir}/bin/activate
-            pip install bash
-            """
-            post_setup_path = venv_dir / 'post-setup.sh'
-            post_setup_path.write_text(post_setup_script)
-            subprocess.run(['bash', str(post_setup_path)], check=True)
-
-            command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+            command = f"{venv_dir / 'bin' / 'bash' / 'app'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             write_supervisord_config(cluster, command)
             asyncio.run(reload_supervisord())
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
