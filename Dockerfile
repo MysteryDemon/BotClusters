@@ -16,9 +16,9 @@ RUN mkdir -p ${SUPERVISORD_CONF_DIR} \
     ${SUPERVISORD_LOG_DIR} \
     /app
 
-RUN mkdir -p /app/venvs
-
 WORKDIR /app
+
+RUN mkdir -p venvs
 
 COPY install.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/install.sh
