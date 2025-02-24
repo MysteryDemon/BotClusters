@@ -162,15 +162,16 @@ async def start_bot(cluster):
 
             if bot_file.suffix == ".sh":
                 command = f"bash {bot_file}"
-            else:
+            elif bot_file.suffix == ".py":
                 # Create virtual environment
                 logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
                 subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
-
-                if bot_file.suffix == ".py":
-                    command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
-                else:
-                    command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
+                command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+            else:
+                # For other file types, ensure environment variables are passed
+                command = f"{bot_file}"
+                bot_env_str = ' '.join([f'{key}="{value}"' for key, value in bot_env.items()])
+                command = f"{bot_env_str} {command}"
 
             write_supervisord_config(cluster, command)
             await reload_supervisord()
