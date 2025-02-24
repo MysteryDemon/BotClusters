@@ -15,7 +15,6 @@ from flask import (
     Flask, render_template, request, jsonify,
     send_file, abort, redirect, url_for, session, flash
 )
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
