@@ -109,7 +109,7 @@ def load_config(file_path):
 
     return clusters
 
-load_dotenv('cluster.env', override=True)
+load_dotenv('cluster.env')
 
 clusters = load_config("config.json")
 
