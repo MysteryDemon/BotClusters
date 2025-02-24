@@ -139,11 +139,9 @@ def start_bot(cluster):
         bot_env = os.environ.copy()
         bot_env.update(cluster.get('env', {}))
         bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
-        venv_dir = bot_dir / 'venv'
         requirements_file = bot_dir / 'requirements.txt'
         bot_file = bot_dir / cluster['run_command']
         branch = cluster.get('branch', 'main')
-        log_dir = Path('/var/log/bots') / cluster['bot_number'].replace(" ", "_")
 
         try:
             if bot_dir.exists():
@@ -153,15 +151,11 @@ def start_bot(cluster):
             logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
             subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
 
-            # Create virtual environment
-            logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-            subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
-
             if requirements_file.exists():
-                logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
-                subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
+                logging.info(f'Installing requirements for {cluster["bot_number"]}')
+                subprocess.run(['pip', 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-            command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+            command = f"bash {bot_file}" if bot_file.suffix == ".sh" else f"python3 {bot_file}"
             write_supervisord_config(cluster, command)
             reload_supervisord()
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
