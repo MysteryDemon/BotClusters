@@ -3,12 +3,19 @@ eventlet.monkey_patch()
 import os
 import logging
 from app import app
-from app.routes import socketio
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+socketio = SocketIO(
+    app,
+    async_mode='eventlet',
+    cors_allowed_origins="*",
+    ping_timeout=60,
+    ping_interval=25
+)
 
 if __name__ == "__main__":
     try:
