@@ -13,10 +13,10 @@ basicConfig(format="[%(asctime)s] [%(name)s | %(levelname)s] - %(message)s [%(fi
             handlers=[FileHandler('log.txt'), StreamHandler()],
             level=INFO)
 
-load_dotenv('config.env', override=True)
+load_dotenv('cluster.env', override=True)
 
-UPSTREAM_REPO = getenv("UPSTREAM_REPO", "https://github.com/MysteryDemon/BotClusters")
-UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "v2.0")
+UPSTREAM_REPO = getenv("UPSTREAM_REPO", "")
+UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "")
 
 if UPSTREAM_REPO is not None:
     if opath.exists('.git'):
