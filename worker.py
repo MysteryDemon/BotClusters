@@ -157,21 +157,18 @@ async def start_bot(cluster):
 
             if requirements_file.exists():
                 logging.info(f'Installing requirements for {cluster["bot_number"]}')
-                pip_command = [str(venv_dir / 'bin' / 'pip') if bot_file.suffix != ".sh" else "pip", 'install', '--no-cache-dir', '-r', str(requirements_file)]
+                # Create virtual environment
+                logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
+                subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
+                pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
                 subprocess.run(pip_command, check=True)
 
             if bot_file.suffix == ".sh":
                 command = f"bash {bot_file}"
             elif bot_file.suffix == ".py":
-                # Create virtual environment
-                logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-                subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
                 command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             else:
-                # For other file types, ensure environment variables are passed
-                command = f"{bot_file}"
-                bot_env_str = ' '.join([f'{key}="{value}"' for key, value in bot_env.items()])
-                command = f"{bot_env_str} {command}"
+                command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
 
             write_supervisord_config(cluster, command)
             await reload_supervisord()
