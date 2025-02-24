@@ -11,24 +11,20 @@ import random
 from pathlib import Path
 from phrase import WORD_LIST
 from logging.handlers import RotatingFileHandler
+import threading
 import re
 from dotenv import load_dotenv
-import asyncio
-from asyncio import Lock
 
 LOG_FILE = 'bot_manager.log'
-LOG_FILE_MAX_SIZE = 5 * 1024 * 1024  # 5 MB
-LOG_FILE_BACKUP_COUNT = 5
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
-# Configure logging with rotation
 logging.basicConfig(
-    handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_FILE_MAX_SIZE, backupCount=LOG_FILE_BACKUP_COUNT)],
-    level=logging.DEBUG,
+    filename=LOG_FILE,
+    level=logging.DEBUG, 
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-bot_lock = Lock()
+bot_lock = threading.Lock()
 
 def generate_prefix():
     """Generate a random prefix for bot naming."""
@@ -68,6 +64,7 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
+
 
 def load_config(file_path):
     """Load bot configurations from a JSON file."""
@@ -135,8 +132,9 @@ stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
-async def start_bot_async(cluster):
-    async with bot_lock:
+def start_bot(cluster):
+    """Clone, set up, and start a bot."""
+    with bot_lock:
         logging.info(f'Starting bot: {cluster["bot_number"]}')
         bot_env = os.environ.copy()
         bot_env.update(cluster.get('env', {}))
@@ -152,35 +150,24 @@ async def start_bot_async(cluster):
                 logging.info(f'Removing existing directory: {bot_dir}')
                 shutil.rmtree(bot_dir)
 
-            logging.info(f'Cloning {cluster["git_url"]} (branch: {branch})')
-            await asyncio.create_subprocess_exec('git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir))
+            logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
+            subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
 
+            # Create virtual environment
             logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-            await asyncio.create_subprocess_exec('python3', '-m', 'venv', str(venv_dir))
+            subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
 
             if requirements_file.exists():
                 logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
-                await asyncio.create_subprocess_exec(str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file))
+                subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
             command = f"{venv_dir / 'bin' / 'bash'} {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             write_supervisord_config(cluster, command)
-            await asyncio.create_subprocess_exec('supervisorctl', 'reread')
-            await asyncio.create_subprocess_exec('supervisorctl', 'update')
+            reload_supervisord()
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
 
         except subprocess.CalledProcessError as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
-
-async def main_async():
-    parser = argparse.ArgumentParser(description='Bot Manager')
-    parser.add_argument('--restart', action='store_true', help='Restart all bots')
-    args = parser.parse_args()
-
-    if args.restart:
-        restart_all_bots()
-    else:
-        logging.info('Starting bot manager...')
-        await asyncio.gather(*(start_bot_async(cluster) for cluster in clusters))
 
 def reload_supervisord():
     """Reload and update supervisord after modifying configurations."""
@@ -217,13 +204,24 @@ def restart_all_bots():
 
 def signal_handler(sig, frame):
     logging.info('Shutting down...')
-    for cluster in clusters:
-        stop_bot(cluster['bot_number'])
-    reload_supervisord()
+    restart_all_bots()
     exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
+def main():
+    parser = argparse.ArgumentParser(description='Bot Manager')
+    parser.add_argument('--restart', action='store_true', help='Restart all bots')
+    args = parser.parse_args()
+
+    if args.restart:
+        restart_all_bots()
+    else:
+        logging.info('Starting bot manager...')
+        with ThreadPoolExecutor(max_workers=len(clusters)) as executor:
+            for cluster in clusters:
+                executor.submit(start_bot, cluster)
+
 if __name__ == "__main__":
-    asyncio.run(main_async())
+    main()
