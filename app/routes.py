@@ -9,13 +9,13 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
+from run import socketio
 
 from app import app
 from flask import (
     Flask, render_template, request, jsonify,
     send_file, abort, redirect, url_for, session, flash
 )
-from flask_socketio import SocketIO, emit
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,14 +27,6 @@ logging.getLogger('socketio').setLevel(logging.DEBUG)
 logging.getLogger('engineio').setLevel(logging.DEBUG)
 
 app.config['SECRET_KEY'] = os.urandom(24)
-
-socketio = SocketIO(
-    app,
-    async_mode='eventlet',
-    cors_allowed_origins="*",
-    ping_timeout=60,
-    ping_interval=25
-)
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
