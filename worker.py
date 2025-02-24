@@ -4,30 +4,27 @@ import json
 import time
 import logging
 import signal
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import shutil
 import argparse
 import random
 from pathlib import Path
 from phrase import WORD_LIST
 from logging.handlers import RotatingFileHandler
+import threading
 import re
 from dotenv import load_dotenv
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
 LOG_FILE = 'bot_manager.log'
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
-LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
-LOG_BACKUP_COUNT = 5
 
 logging.basicConfig(
-    handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT)],
+    filename=LOG_FILE,
     level=logging.DEBUG, 
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-bot_lock = asyncio.Lock()
+bot_lock = threading.Lock()
 
 def generate_prefix():
     """Generate a random prefix for bot naming."""
@@ -67,6 +64,7 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
+
 
 def load_config(file_path):
     """Load bot configurations from a JSON file."""
@@ -134,9 +132,9 @@ stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
-async def start_bot(cluster):
+def start_bot(cluster):
     """Clone, set up, and start a bot."""
-    async with bot_lock:
+    with bot_lock:
         logging.info(f'Starting bot: {cluster["bot_number"]}')
         bot_env = os.environ.copy()
         bot_env.update(cluster.get('env', {}))
@@ -151,41 +149,37 @@ async def start_bot(cluster):
                 shutil.rmtree(bot_dir)
 
             logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
-            await asyncio.create_subprocess_exec('git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir))
-
-            venv_dir = bot_dir / 'venv'
-            logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-            await asyncio.create_subprocess_exec('python3', '-m', 'venv', str(venv_dir))
+            subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
 
             if requirements_file.exists():
-                logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
-                await asyncio.create_subprocess_exec(str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file))
+                logging.info(f'Installing requirements for {cluster["bot_number"]}')
+                subprocess.run(['pip', 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
-            command = f"bash {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+            command = f"bash {bot_file}" if bot_file.suffix == ".sh" else f"python3 {bot_file}"
             write_supervisord_config(cluster, command)
-            await reload_supervisord()
+            reload_supervisord()
             logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
 
         except subprocess.CalledProcessError as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
 
-async def reload_supervisord():
+def reload_supervisord():
     """Reload and update supervisord after modifying configurations."""
     logging.info("Reloading supervisord...")
     try:
-        await asyncio.create_subprocess_exec("supervisorctl", "reread")
-        await asyncio.create_subprocess_exec("supervisorctl", "update")
+        subprocess.run(["supervisorctl", "reread"], check=True)
+        subprocess.run(["supervisorctl", "update"], check=True)
         logging.info("Supervisord updated successfully.")
     except subprocess.CalledProcessError as e:
         logging.error(f"Error reloading supervisord: {e}")
 
-async def stop_bot(bot_number):
+def stop_bot(bot_number):
     """Stop and remove a bot's supervisord configuration."""
     logging.info(f"Stopping bot: {bot_number}")
     bot_conf_name = bot_number.replace(" ", "_")
     
     try:
-        await asyncio.create_subprocess_exec("supervisorctl", "stop", bot_conf_name)
+        subprocess.run(["supervisorctl", "stop", bot_conf_name], check=False)
     except subprocess.CalledProcessError:
         logging.error(f"Failed to stop bot {bot_number}")
 
@@ -193,55 +187,35 @@ async def stop_bot(bot_number):
     if conf_path.exists():
         conf_path.unlink()
         logging.info(f"Removed supervisord configuration for {bot_number}.")
-    await reload_supervisord()
+    reload_supervisord()
 
-async def restart_all_bots():
+def restart_all_bots():
     """Restart all bots managed by the system."""
     logging.info('Restarting all bots...')
     for cluster in clusters:
-        await stop_bot(cluster['bot_number'])
-    await reload_supervisord()
+        stop_bot(cluster['bot_number'])
+    reload_supervisord()
 
 def signal_handler(sig, frame):
     logging.info('Shutting down...')
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(restart_all_bots())
+    restart_all_bots()
     exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-class ConfigReloadHandler(FileSystemEventHandler):
-    """Handler to reload configuration when the config file changes."""
-    def on_modified(self, event):
-        if event.src_path.endswith("config.json"):
-            logging.info("Configuration file changed, reloading...")
-            global clusters
-            clusters = load_config("config.json")
-            logging.info("Configuration reloaded successfully.")
-
-def start_config_watcher():
-    """Start the config file watcher."""
-    event_handler = ConfigReloadHandler()
-    observer = Observer()
-    observer.schedule(event_handler, path='.', recursive=False)
-    observer.start()
-    return observer
-
-async def main():
+def main():
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
 
-    start_config_watcher()
-
     if args.restart:
-        await restart_all_bots()
+        restart_all_bots()
     else:
         logging.info('Starting bot manager...')
-        tasks = [start_bot(cluster) for cluster in clusters]
-        await asyncio.gather(*tasks)
+        with ThreadPoolExecutor(max_workers=len(clusters)) as executor:
+            for cluster in clusters:
+                executor.submit(start_bot, cluster)
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    main()
