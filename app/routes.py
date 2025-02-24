@@ -1,5 +1,6 @@
 import eventlet
 eventlet.monkey_patch()
+
 import os
 import subprocess
 import re
@@ -8,9 +9,13 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
-from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for, session, flash
-from flask_socketio import SocketIO, emit
 
+from app import app
+from flask import (
+    Flask, render_template, request, jsonify,
+    send_file, abort, redirect, url_for, session, flash
+)
+from flask_socketio import SocketIO, emit
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,7 +26,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger('socketio').setLevel(logging.DEBUG)
 logging.getLogger('engineio').setLevel(logging.DEBUG)
 
-app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 
 socketio = SocketIO(
@@ -407,18 +411,3 @@ def handle_error(e):
         "status": "error",
         "message": "An internal server error occurred"
     }), 500
-
-if __name__ == "__main__":
-    try:
-        os.makedirs(SUPERVISOR_LOG_DIR, exist_ok=True)
-        port = int(os.environ.get("PORT", 5000))
-        socketio.run(
-            app,
-            host="0.0.0.0",
-            port=port,
-            debug=True,
-            use_reloader=False
-        )
-    except Exception as e:
-        logger.error(f"Failed to start application: {str(e)}")
-        raise

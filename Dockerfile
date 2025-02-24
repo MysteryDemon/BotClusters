@@ -15,7 +15,7 @@ ENV SUPERVISORD_LOG_DIR=/var/log/supervisor
 RUN mkdir -p ${SUPERVISORD_CONF_DIR} \
     ${SUPERVISORD_LOG_DIR} \
     /app
-    
+
 WORKDIR /app
 
 COPY install.sh /usr/local/bin/

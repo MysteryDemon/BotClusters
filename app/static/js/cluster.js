@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Set up periodic status updates
         if (updateInterval) clearInterval(updateInterval);
-        updateInterval = setInterval(requestStatus, 5000); // Update every 5 seconds
+        updateInterval = setInterval(requestStatus, 1000); // Update every 5 seconds
     });
 
     socket.on('disconnect', function() {
