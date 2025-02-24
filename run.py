@@ -5,7 +5,7 @@ import os
 import logging
 from app import app
 from flask_socketio import SocketIO, emit
-from app.routes import parse_supervisor_status, run_supervisor_command
+from app.routes import parse_supervisor_status, run_supervisor_command, broadcast_status_update
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 
