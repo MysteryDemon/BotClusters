@@ -10,7 +10,7 @@ bind = f"0.0.0.0:{PORT}"
 backlog = 2048
 
 # Worker processes
-workers = 4
+workers = 1
 worker_class = 'sync'
 worker_connections = 1000
 timeout = 60
