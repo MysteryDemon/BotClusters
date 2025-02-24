@@ -1,5 +1,6 @@
 import eventlet
 eventlet.monkey_patch()
+
 import os
 import subprocess
 import re
@@ -8,10 +9,13 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
-from app import app 
-from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for, session, flash
-from flask_socketio import SocketIO, emit
 
+from app import app
+from flask import (
+    Flask, render_template, request, jsonify,
+    send_file, abort, redirect, url_for, session, flash
+)
+from flask_socketio import SocketIO, emit
 
 logging.basicConfig(
     level=logging.INFO,
