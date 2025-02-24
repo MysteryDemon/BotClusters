@@ -12,7 +12,6 @@ import random
 from pathlib import Path
 from phrase import WORD_LIST
 from logging.handlers import RotatingFileHandler
-import threading
 import re
 from dotenv import load_dotenv
 from watchdog.observers import Observer
@@ -29,7 +28,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-bot_lock = threading.Lock()
+bot_lock = asyncio.Lock()
 
 def generate_prefix():
     """Generate a random prefix for bot naming."""
