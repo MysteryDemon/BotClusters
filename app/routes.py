@@ -9,6 +9,7 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
+import socketio
 
 from app import app
 from flask import (
