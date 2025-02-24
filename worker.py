@@ -204,7 +204,8 @@ async def restart_all_bots():
 
 def signal_handler(sig, frame):
     logging.info('Shutting down...')
-    asyncio.run(restart_all_bots())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(restart_all_bots())
     exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -242,4 +243,5 @@ async def main():
         await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
