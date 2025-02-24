@@ -5,7 +5,6 @@ import time
 import logging
 import signal
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import shutil
 import argparse
 import random
