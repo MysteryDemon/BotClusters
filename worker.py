@@ -16,13 +16,11 @@ import re
 from dotenv import load_dotenv
 import asyncio
 
-# Constants
 LOG_FILE = 'bot_manager.log'
 LOG_SIZE = 10 * 1024 * 1024  # 10 MB
 LOG_BACKUP_COUNT = 5
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
-# Logging setup
 logging.basicConfig(
     handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)],
     level=logging.DEBUG,
