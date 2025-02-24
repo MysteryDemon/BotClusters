@@ -4,6 +4,10 @@ import json
 import time
 import logging
 import signal
+import asyncio
+import aiofiles
+import psutil
+import virtualenv
 from concurrent.futures import ThreadPoolExecutor
 import shutil
 import argparse
@@ -14,17 +18,61 @@ from logging.handlers import RotatingFileHandler
 import threading
 import re
 from dotenv import load_dotenv
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from contextlib import asynccontextmanager
 
+# Constants
 LOG_FILE = 'bot_manager.log'
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
+CONFIG_FILE = "config.json"
+MAX_LOG_SIZE = 10 * 1024 * 1024  # 10MB
+BACKUP_COUNT = 5
+MAX_CONCURRENT_INSTALLS = 3
+VENV_BASE_DIR = Path("/app/venvs")
 
+# Configure logging with rotation
+rotating_handler = RotatingFileHandler(
+    LOG_FILE,
+    maxBytes=MAX_LOG_SIZE,
+    backupCount=BACKUP_COUNT
+)
 logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.DEBUG, 
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[rotating_handler]
 )
 
+# Semaphore for resource management
+install_semaphore = asyncio.Semaphore(MAX_CONCURRENT_INSTALLS)
 bot_lock = threading.Lock()
+config_lock = threading.Lock()
+clusters = []
+
+class ConfigWatcher(FileSystemEventHandler):
+    def __init__(self, callback):
+        self.callback = callback
+        
+    def on_modified(self, event):
+        if event.src_path.endswith(CONFIG_FILE):
+            logging.info("Config file modified, triggering reload...")
+            asyncio.create_task(self.callback())
+
+class ResourceManager:
+    def __init__(self):
+        self.max_memory_percent = 80
+        self.max_cpu_percent = 80
+    
+    async def check_resources(self):
+        cpu_percent = psutil.cpu_percent()
+        memory_percent = psutil.virtual_memory().percent
+        
+        if cpu_percent > self.max_cpu_percent or memory_percent > self.max_memory_percent:
+            await asyncio.sleep(5)  # Wait if resources are constrained
+            return False
+        return True
+
+resource_manager = ResourceManager()
 
 def generate_prefix():
     """Generate a random prefix for bot naming."""
@@ -55,42 +103,39 @@ def validate_config(clusters):
             return False
         
         bot_suffix = match.group()
-
         if bot_suffix in seen_bot_suffixes:
-            logging.error(f"Duplicate bot suffix found: {bot_suffix} in {cluster['bot_number']}")
+            logging.error(f"Duplicate bot suffix found: {bot_suffix}")
             return False
-        
         seen_bot_suffixes.add(bot_suffix)
 
-    logging.info("Configuration validation successful.")
     return True
 
-
-def load_config(file_path):
+async def load_config(file_path):
     """Load bot configurations from a JSON file."""
-    logging.info(f'Loading configuration from {file_path}')
+    global clusters
     
+    logging.info(f'Loading configuration from {file_path}')
     try:
-        with open(file_path, "r") as jsonfile:
-            config = json.load(jsonfile)
-    except (json.JSONDecodeError, FileNotFoundError) as e:
+        async with aiofiles.open(file_path, "r") as jsonfile:
+            content = await jsonfile.read()
+            config = json.loads(content)
+    except Exception as e:
         logging.error(f"Error loading JSON file: {e}")
         return []
 
-    clusters = []
+    new_clusters = []
     for cluster in config.get('clusters', []):
         details_str = os.getenv(cluster['name'], '{}')
         
         try:
             details = json.loads(details_str)
             if not isinstance(details, list) or len(details) < 4:
-                logging.warning(f"Skipping cluster {cluster['name']} due to missing details.")
                 continue
 
             prefix = generate_prefix()
             cluster_name = f"{prefix} {cluster['name']}"
 
-            clusters.append({
+            new_clusters.append({
                 "name": cluster_name,
                 "bot_number": f"{prefix} {details[0]}",
                 "git_url": details[1],
@@ -100,44 +145,76 @@ def load_config(file_path):
             })
 
         except json.JSONDecodeError:
-            logging.error(f"Error decoding JSON for {cluster['name']}, skipping.")
+            logging.error(f"Error decoding JSON for {cluster['name']}")
             continue
 
-    if not validate_config(clusters):
-        raise ValueError("Invalid configuration file.")
+    if validate_config(new_clusters):
+        with config_lock:
+            clusters = new_clusters
+        return new_clusters
+    raise ValueError("Invalid configuration file")
 
-    return clusters
+async def create_venv(bot_dir):
+    """Create a virtual environment for the bot."""
+    venv_path = VENV_BASE_DIR / bot_dir.name
+    if venv_path.exists():
+        shutil.rmtree(venv_path)
+    
+    logging.info(f"Creating virtual environment at {venv_path}")
+    virtualenv.create_environment(str(venv_path))
+    return venv_path
 
-load_dotenv()
-clusters = load_config("config.json")
-
-def write_supervisord_config(cluster, command):
+async def write_supervisord_config(cluster, command, venv_path):
     """Write a supervisord config for the bot."""
     config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
-    logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
+    logging.info(f"Writing supervisord configuration for {cluster['bot_number']}")
 
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
-
+    
     config_content = f"""
 [program:{cluster['bot_number'].replace(' ', '_')}]
-command={command}
+command={venv_path}/bin/python {command}
 directory=/app/{cluster['bot_number'].replace(' ', '_')}
 autostart=true
 autorestart=true
 stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
 stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
+stopasgroup=true
+killasgroup=true
 {f"environment={env_vars}" if env_vars else ""}
 """
 
-    config_path.write_text(config_content.strip())
-    logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
+    async with aiofiles.open(config_path, 'w') as f:
+        await f.write(config_content.strip())
 
-def start_bot(cluster):
+async def install_requirements(requirements_file, venv_path):
+    """Install requirements in the virtual environment."""
+    async with install_semaphore:
+        while not await resource_manager.check_resources():
+            await asyncio.sleep(1)
+        
+        pip_path = venv_path / 'bin' / 'pip'
+        try:
+            process = await asyncio.create_subprocess_exec(
+                str(pip_path),
+                'install',
+                '--no-cache-dir',
+                '-r',
+                str(requirements_file),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.communicate()
+            if process.returncode != 0:
+                raise Exception(f"Failed to install requirements: {requirements_file}")
+        except Exception as e:
+            logging.error(f"Error installing requirements: {e}")
+            raise
+
+async def start_bot(cluster):
     """Clone, set up, and start a bot."""
-    with bot_lock:
+    async with asynccontextmanager(lambda: bot_lock):
         logging.info(f'Starting bot: {cluster["bot_number"]}')
-        bot_env = os.environ.copy()
-        bot_env.update(cluster.get('env', {}))
         bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
         requirements_file = bot_dir / 'requirements.txt'
         bot_file = bot_dir / cluster['run_command']
@@ -145,77 +222,157 @@ def start_bot(cluster):
 
         try:
             if bot_dir.exists():
-                logging.info(f'Removing existing directory: {bot_dir}')
                 shutil.rmtree(bot_dir)
 
-            logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
-            subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
+            # Clone repository
+            process = await asyncio.create_subprocess_exec(
+                'git', 'clone', '-b', branch, '--single-branch',
+                cluster['git_url'], str(bot_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.communicate()
+
+            # Create and setup virtual environment
+            venv_path = await create_venv(bot_dir)
 
             if requirements_file.exists():
-                logging.info(f'Installing requirements for {cluster["bot_number"]}')
-                subprocess.run(['pip', 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
+                await install_requirements(requirements_file, venv_path)
 
-            command = f"bash {bot_file}" if bot_file.suffix == ".sh" else f"python3 {bot_file}"
-            write_supervisord_config(cluster, command)
-            reload_supervisord()
-            logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
+            command = str(bot_file)
+            await write_supervisord_config(cluster, command, venv_path)
+            await reload_supervisord()
 
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             logging.error(f"Error while processing {cluster['bot_number']}: {e}")
+            raise
 
-def reload_supervisord():
+async def reload_supervisord():
     """Reload and update supervisord after modifying configurations."""
     logging.info("Reloading supervisord...")
     try:
-        subprocess.run(["supervisorctl", "reread"], check=True)
-        subprocess.run(["supervisorctl", "update"], check=True)
-        logging.info("Supervisord updated successfully.")
-    except subprocess.CalledProcessError as e:
+        process = await asyncio.create_subprocess_exec(
+            "supervisorctl", "reread",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await process.communicate()
+        
+        process = await asyncio.create_subprocess_exec(
+            "supervisorctl", "update",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await process.communicate()
+        
+        logging.info("Supervisord updated successfully")
+    except Exception as e:
         logging.error(f"Error reloading supervisord: {e}")
+        raise
 
-def stop_bot(bot_number):
+async def stop_bot(bot_number):
     """Stop and remove a bot's supervisord configuration."""
     logging.info(f"Stopping bot: {bot_number}")
     bot_conf_name = bot_number.replace(" ", "_")
     
     try:
-        subprocess.run(["supervisorctl", "stop", bot_conf_name], check=False)
-    except subprocess.CalledProcessError:
-        logging.error(f"Failed to stop bot {bot_number}")
+        process = await asyncio.create_subprocess_exec(
+            "supervisorctl", "stop", bot_conf_name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await process.communicate()
+        
+        conf_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
+        if conf_path.exists():
+            conf_path.unlink()
+        
+        # Clean up virtual environment
+        venv_path = VENV_BASE_DIR / bot_conf_name
+        if venv_path.exists():
+            shutil.rmtree(venv_path)
+            
+    except Exception as e:
+        logging.error(f"Error stopping bot {bot_number}: {e}")
 
-    conf_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
-    if conf_path.exists():
-        conf_path.unlink()
-        logging.info(f"Removed supervisord configuration for {bot_number}.")
-    reload_supervisord()
-
-def restart_all_bots():
+async def restart_all_bots():
     """Restart all bots managed by the system."""
     logging.info('Restarting all bots...')
-    for cluster in clusters:
-        stop_bot(cluster['bot_number'])
-    reload_supervisord()
+    stop_tasks = [stop_bot(cluster['bot_number']) for cluster in clusters]
+    await asyncio.gather(*stop_tasks)
+    await reload_supervisord()
 
-def signal_handler(sig, frame):
-    logging.info('Shutting down...')
-    restart_all_bots()
-    exit(0)
+async def config_reload_handler():
+    """Handle configuration file changes."""
+    try:
+        new_clusters = await load_config(CONFIG_FILE)
+        await restart_all_bots()
+        logging.info("Configuration reloaded successfully")
+    except Exception as e:
+        logging.error(f"Error reloading configuration: {e}")
 
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+def setup_config_watcher():
+    """Set up file system watcher for config changes."""
+    event_handler = ConfigWatcher(config_reload_handler)
+    observer = Observer()
+    observer.schedule(event_handler, path='.', recursive=False)
+    observer.start()
+    return observer
 
-def main():
+async def graceful_shutdown(sig, loop):
+    """Handle graceful shutdown of the application."""
+    logging.info(f'Received signal {sig.name}...')
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    
+    for task in tasks:
+        task.cancel()
+    
+    logging.info(f'Cancelling {len(tasks)} outstanding tasks')
+    await asyncio.gather(*tasks, return_exceptions=True)
+    await restart_all_bots()
+    loop.stop()
+
+async def main():
+    """Main application entry point."""
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
 
-    if args.restart:
-        restart_all_bots()
-    else:
-        logging.info('Starting bot manager...')
-        with ThreadPoolExecutor(max_workers=len(clusters)) as executor:
-            for cluster in clusters:
-                executor.submit(start_bot, cluster)
+    # Initialize virtual environment directory
+    VENV_BASE_DIR.mkdir(exist_ok=True)
+
+    # Setup signal handlers
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(
+            sig,
+            lambda s=sig: asyncio.create_task(graceful_shutdown(s, loop))
+        )
+
+    # Load initial configuration
+    await load_config(CONFIG_FILE)
+    
+    # Setup config file watcher
+    observer = setup_config_watcher()
+
+    try:
+        if args.restart:
+            await restart_all_bots()
+        else:
+            logging.info('Starting bot manager...')
+            start_tasks = [start_bot(cluster) for cluster in clusters]
+            await asyncio.gather(*start_tasks)
+            
+        # Keep the main loop running
+        while True:
+            await asyncio.sleep(1)
+            
+    except Exception as e:
+        logging.error(f"Error in main loop: {e}")
+    finally:
+        observer.stop()
+        observer.join()
 
 if __name__ == "__main__":
-    main()
+    load_dotenv()
+    asyncio.run(main())
