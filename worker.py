@@ -136,18 +136,38 @@ def write_supervisord_config(cluster, command):
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
-def execute_python_commands_from_sh(file_path):
-    """Execute python commands from a .sh file."""
+def execute_python_commands_from_sh(file_path, venv_path=None):
+    """Execute Python commands from a .sh file, optionally within a virtual environment."""
+    
+    # Log the execution of commands
     logging.info(f"Reading and executing commands from {file_path}")
-    with open(file_path, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith("python3"):
-                logging.info(f"Executing command: {line}")
-                try:
-                    subprocess.run(line.split(), check=True)
-                except subprocess.CalledProcessError as e:
-                    logging.error(f"Error executing command {line}: {e}")
+    
+    # Open the .sh file and read commands
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                line = line.strip()
+                
+                # Check if the line contains a Python command
+                if line.startswith("python3"):
+                    logging.info(f"Executing command: {line}")
+                    
+                    # If a virtual environment is provided, modify the command
+                    if venv_path:
+                        # Make sure to activate the virtual environment
+                        python_executable = os.path.join(venv_path, 'bin', 'python3')
+                        command = line.replace('python3', python_executable)
+                    else:
+                        command = line
+                    
+                    try:
+                        subprocess.run(command.split(), check=True)
+                    except subprocess.CalledProcessError as e:
+                        logging.error(f"Error executing command {line}: {e}")
+                else:
+                    logging.info(f"Skipping non-Python command: {line}")
+    except Exception as e:
+        logging.error(f"Error reading the file {file_path}: {e}")
 
 def start_bot(cluster):
     """Clone, set up, and start a bot."""
@@ -179,7 +199,7 @@ def start_bot(cluster):
                 subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
             if bot_file.suffix == ".sh":
-                execute_python_commands_from_sh(bot_file)
+                execute_python_commands_from_sh(bot_file, venv_path=venv_dir)
             else:
                 command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
                 write_supervisord_config(cluster, command)
