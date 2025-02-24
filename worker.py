@@ -48,7 +48,7 @@ def validate_config(clusters):
             logging.error(f"Missing required fields in: {cluster.get('name', 'Unknown')}")
             return False
 
-        if not cluster['git_url'].startswith('http'):
+        if not cluster['git_url'].startsWith('http'):
             logging.error(f"Invalid git_url for {cluster['name']}.")
             return False
 
@@ -56,13 +56,12 @@ def validate_config(clusters):
         if not match:
             logging.error(f"Invalid bot_number format for {cluster['name']}: {cluster['bot_number']}")
             return False
-        
-        bot_suffix = match.group()
 
+        bot_suffix = match.group()
         if bot_suffix in seen_bot_suffixes:
             logging.error(f"Duplicate bot suffix found: {bot_suffix} in {cluster['bot_number']}")
             return False
-        
+
         seen_bot_suffixes.add(bot_suffix)
 
     logging.info("Configuration validation successful.")
@@ -121,16 +120,16 @@ def write_supervisord_config(cluster, command):
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
 
     config_content = f"""
-[program:{cluster['bot_number'].replace(' ', '_')}]
-command={command}
-directory=/app/{cluster['bot_number'].replace(' ', '_')}
-autostart=true
-autorestart=true
-startretries=5
-stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
-stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
-{f"environment={env_vars}" if env_vars else ""}
-"""
+    [program:{cluster['bot_number'].replace(' ', '_')}]
+    command={command}
+    directory=/app/{cluster['bot_number'].replace(' ', '_')}
+    autostart=true
+    autorestart=true
+    startretries=5
+    stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
+    stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
+    {f"environment={env_vars}" if env_vars else ""}
+    """
 
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
@@ -155,8 +154,6 @@ def start_bot(cluster):
 
             logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
             subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
-
-            # Create virtual environment
             logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
             subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
 
