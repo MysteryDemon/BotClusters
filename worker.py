@@ -162,6 +162,12 @@ def start_bot(cluster):
                 logging.info(f'Installing requirements for {cluster["bot_number"]} in virtual environment')
                 subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)], check=True)
 
+                # Verify all dependencies are installed
+                missing_dependencies = subprocess.run([str(venv_dir / 'bin' / 'pip'), 'check'], capture_output=True, text=True)
+                if missing_dependencies.returncode != 0:
+                    logging.info(f'Reinstalling missing dependencies for {cluster["bot_number"]}')
+                    subprocess.run([str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '--force-reinstall', '-r', str(requirements_file)], check=True)
+
             command = f"bash {bot_file}" if bot_file.suffix == ".sh" else f"{venv_dir / 'bin' / 'python3'} {bot_file}"
             write_supervisord_config(cluster, command)
             asyncio.run(reload_supervisord())
