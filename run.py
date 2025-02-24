@@ -1,8 +1,10 @@
 import eventlet
 eventlet.monkey_patch()
+
 import os
 import logging
 from app import app
+from flask_socketio import SocketIO, emit
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 
