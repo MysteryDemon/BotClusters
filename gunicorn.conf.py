@@ -2,7 +2,7 @@ import os
 import multiprocessing
 
 # Worker class
-worker_class = "eventlet"
+#worker_class = "eventlet"
 
 # Server socket
 PORT = os.getenv("PORT", "5000")
