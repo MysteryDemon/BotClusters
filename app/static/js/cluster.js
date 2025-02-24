@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reconnection: true,
         reconnectionDelay: 2000,
         reconnectionDelayMax: 10000,
-        reconnectionAttempts: infinity
+        reconnectionAttempts: MAX_RECONNECT_ATTEMPTS
     });
     
     socket.on('connect', function() {
