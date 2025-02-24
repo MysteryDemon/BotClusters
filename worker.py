@@ -109,8 +109,7 @@ def load_config(file_path):
 
     return clusters
 
-load_dotenv('cluster.env')
-
+load_dotenv()
 clusters = load_config("config.json")
 
 def write_supervisord_config(cluster, command):
