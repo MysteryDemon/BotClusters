@@ -1,21 +1,5 @@
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-.pytest_cache
-.vscode
-*.jpg
-*.pkl
-*.png
-*.session
-ffmpeg.txt
-filter.txt
-mux.txt
-replace_proxy.txt
-NO_CAPTION
-NO_PARSE
+/proc/
+/sys/
+/dev/
+*.log
+*.tmp
