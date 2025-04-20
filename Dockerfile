@@ -17,7 +17,14 @@ RUN arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/64/) && \
     wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux${arch}-gpl-7.1.tar.xz && \
     tar -xvf *xz && cp *7.1/bin/* /usr/bin && rm -rf *xz && rm -rf *7.1
 
-COPY . .
+ENV SUPERVISORD_CONF_DIR=/etc/supervisor/conf.d
+ENV SUPERVISORD_LOG_DIR=/var/log/supervisor
+
+RUN mkdir -p ${SUPERVISORD_CONF_DIR} \
+    ${SUPERVISORD_LOG_DIR} \
+    /app
+
+WORKDIR /app
 
 COPY install.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/install.sh
@@ -25,6 +32,7 @@ RUN chmod +x /usr/local/bin/install.sh
 COPY requirements.txt ./
 RUN echo "supervisor" >> requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
+COPY . .
 
 EXPOSE 5000
 CMD ["python3", "cluster.py"]
