@@ -7,8 +7,8 @@ RUN dnf -y update && \
     mediainfo psmisc procps-ng supervisor && \
     dnf clean all
 
-RUN python3.12 -m ensurepip --upgrade && \
-    python3.12 -m pip install --upgrade pip setuptools
+RUN python3.10 -m ensurepip --upgrade && \
+    python3.10 -m pip install --upgrade pip setuptools
 
 RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 && \
     alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.10 1
