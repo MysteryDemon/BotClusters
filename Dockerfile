@@ -8,9 +8,8 @@ RUN dnf -y update && \
     dnf clean all
 
 RUN python3.10 -m ensurepip --upgrade && \
-    python3.10 -m pip install --upgrade pip setuptools
-
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 && \
+    python3.10 -m pip install --upgrade pip setuptools && \
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 && \
     alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.10 1
 
 RUN arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/64/) && \
