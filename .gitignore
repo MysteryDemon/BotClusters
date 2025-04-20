@@ -1,2 +1,11 @@
-/proc
-/sys
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+*.log
+proc/
+sys/
+dev/
+usr/
