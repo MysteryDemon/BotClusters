@@ -1,4 +1,4 @@
 /proc/
-/sys/
+/dev/
 *.log
 *.tmp
