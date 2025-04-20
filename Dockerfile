@@ -23,7 +23,7 @@ RUN chmod +x /usr/local/bin/install.sh
 COPY requirements.txt ./
 RUN echo "supervisor" >> requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
-COPY . .
+COPY . ./
 
 EXPOSE 5000
 CMD ["python3", "cluster.py"]
