@@ -33,5 +33,6 @@ RUN echo "supervisor" >> requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
 COPY . .
 
-EXPOSE 5000 9001
+EXPOSE 5000
+RUN if [[ $(arch) == 'aarch64' ]]; then   dnf -qq -y history undo last; fi && dnf clean all
 CMD ["python3", "cluster.py"]
