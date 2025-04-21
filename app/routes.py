@@ -295,69 +295,61 @@ def manage_supervisor_process(action, process_name):
                     "status": "error",
                     "message": f"Error restoring configuration: {str(e)}"
                 }), 500
-            
+        
         elif action == "restart":
-            try:
-                if config_path.exists():
-                    with open(config_path, 'r') as f:
-                        current_config = f.read()
-                    
-                    result = run_supervisor_command("stop", process_name)
-                    if result["status"] == "success":
-                        config_path.unlink() 
-                        subprocess.run(["supervisorctl", "reread"], check=True)
-                        subprocess.run(["supervisorctl", "update"], check=True)
-                        time.sleep(2)
-                        with open(config_path, 'w') as f:
-                            f.write(current_config)
-                        subprocess.run(["supervisorctl", "reread"], check=True)
-                        subprocess.run(["supervisorctl", "update"], check=True)
-                        result = run_supervisor_command("start", process_name)
-                        expected_status = "RUNNING"
-                        
-                else:
+    try:
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                current_config = f.read()
+                
+            result = run_supervisor_command("stop", process_name)
+            if result["status"] == "success":
+                try:
+                    repo_path = Path(__file__).parent.parent
+                    git_pull_result = subprocess.run(
+                        ["git", "-C", str(repo_path), "pull"],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    if git_pull_result.returncode == 0:
+                        logger.info(f"Successfully pulled latest code: {git_pull_result.stdout.strip()}")
+                    else:
+                        logger.error(f"Error during git pull: {git_pull_result.stderr.strip()}")
+                        return jsonify({
+                            "status": "error",
+                            "message": f"Error during git pull: {git_pull_result.stderr.strip()}"
+                        }), 500
+                except Exception as e:
+                    logger.error(f"Error executing git pull: {e}")
                     return jsonify({
                         "status": "error",
-                        "message": f"Config file not found for {process_name}"
-                    }), 404
+                        "message": f"Error executing git pull: {str(e)}"
+                    }), 500
                     
-            except Exception as e:
-                logger.error(f"Error during restart process for {process_name}: {e}")
-                return jsonify({
-                    "status": "error",
-                    "message": f"Error during restart: {str(e)}"
-                }), 500
-        
-        if result["status"] != "success":
-            return jsonify(result), 500
-        for _ in range(MAX_STATUS_CHECK_ATTEMPTS):
-            time.sleep(STATUS_CHECK_INTERVAL)
-            current_status = verify_process_status(process_name)
-            
-            if action == "stop" and current_status is None:
-                broadcast_status_update()
-                return jsonify({
-                    "status": "success",
-                    "message": f"Successfully stopped {process_name}"
-                }), 200
-            
-            if current_status and expected_status in current_status:
-                broadcast_status_update()
-                return jsonify({
-                    "status": "success",
-                    "message": f"Successfully {action}ed {process_name}"
-                }), 200
+                config_path.unlink()
+                subprocess.run(["supervisorctl", "reread"], check=True)
+                subprocess.run(["supervisorctl", "update"], check=True)
+                time.sleep(2)
+                with open(config_path, 'w') as f:
+                    f.write(current_config)
+                subprocess.run(["supervisorctl", "reread"], check=True)
+                subprocess.run(["supervisorctl", "update"], check=True)
                 
-        return jsonify({
-            "status": "error",
-            "message": f"Process did not reach {expected_status} state after {action}"
-        }), 500
-            
+                result = run_supervisor_command("start", process_name)
+                expected_status = "RUNNING"
+
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Config file not found for {process_name}"
+            }), 404
+
     except Exception as e:
-        logger.error(f"Error managing process {process_name}: {str(e)}")
+        logger.error(f"Error during restart process for {process_name}: {e}")
         return jsonify({
             "status": "error",
-            "message": f"Error managing process: {str(e)}"
+            "message": f"Error during restart: {str(e)}"
         }), 500
 
 @app.route('/supervisor/log/<process_name>', methods=['GET'])
