@@ -9,6 +9,7 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
+import configparser
 
 from app import app
 from flask import (
@@ -132,6 +133,36 @@ def broadcast_status_update():
     except Exception as e:
         logger.error(f"Error broadcasting status update: {str(e)}")
         return False
+
+def update_process_code(process_name, config_content=None):
+    """Update the code for the given process by pulling the latest changes from Git."""
+    try:
+        if config_content:
+            config = configparser.ConfigParser()
+            config.read_string(config_content)
+            section = 'program:' + process_name
+            if section in config:
+                directory = config[section].get('directory')
+                if directory and Path(directory).exists():
+                    subprocess.run(['git', 'pull'], cwd=directory, check=True)
+                    logger.info(f"Updated code for {process_name} in {directory}")
+                else:
+                    logger.warning(f"No valid directory found for {process_name}")
+        else:
+            config_path = Path(SUPERVISORD_CONF_DIR) / f"{process_name.replace(' ', '_')}.conf"
+            if config_path.exists():
+                config = configparser.ConfigParser()
+                config.read(config_path)
+                section = 'program:' + process_name
+                if section in config:
+                    directory = config[section].get('directory')
+                    if directory and Path(directory).exists():
+                        subprocess.run(['git', 'pull'], cwd=directory, check=True)
+                        logger.info(f"Updated code for {process_name} in {directory}")
+                    else:
+                        logger.warning(f"No valid directory found for {process_name}")
+    except Exception as e:
+        logger.error(f"Error updating code for {process_name}: {str(e)}")
 
 users = {
     "admin": "password123",
@@ -278,13 +309,15 @@ def manage_supervisor_process(action, process_name):
         elif action == "start":
             try:
                 if process_name in TEMP_SUPERVISOR_CONFIGS:
+                    config_content = TEMP_SUPERVISOR_CONFIGS[process_name]
+                    update_process_code(process_name, config_content)
                     with open(config_path, 'w') as f:
-                        f.write(TEMP_SUPERVISOR_CONFIGS[process_name])
-                    logger.info(f"Restored supervisor config for {process_name}")
+                        f.write(config_content)
                     subprocess.run(["supervisorctl", "reread"], check=True)
                     subprocess.run(["supervisorctl", "update"], check=True)
-                    
                     del TEMP_SUPERVISOR_CONFIGS[process_name]
+                else:
+                    update_process_code(process_name)
                 
                 result = run_supervisor_command("start", process_name)
                 expected_status = "RUNNING"
@@ -300,16 +333,17 @@ def manage_supervisor_process(action, process_name):
             try:
                 if config_path.exists():
                     with open(config_path, 'r') as f:
-                        current_config = f.read()
+                        config_content = f.read()
                     
                     result = run_supervisor_command("stop", process_name)
                     if result["status"] == "success":
-                        config_path.unlink() 
+                        config_path.unlink()
                         subprocess.run(["supervisorctl", "reread"], check=True)
                         subprocess.run(["supervisorctl", "update"], check=True)
                         time.sleep(2)
+                        update_process_code(process_name, config_content)
                         with open(config_path, 'w') as f:
-                            f.write(current_config)
+                            f.write(config_content)
                         subprocess.run(["supervisorctl", "reread"], check=True)
                         subprocess.run(["supervisorctl", "update"], check=True)
                         result = run_supervisor_command("start", process_name)

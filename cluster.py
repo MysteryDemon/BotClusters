@@ -11,7 +11,7 @@ def run_gunicorn():
     subprocess.run(["gunicorn", "-w", "1", "-k", "eventlet", "-b", f"0.0.0.0:{os.environ.get('PORT', '5000')}", "run:app"], check=True)
 
 def run_supervisord():
-    subprocess.run(["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"])
+    subprocess.run(["supervisord", "-n", "-c", "supervisord.conf"])
 
 def run_worker():
     subprocess.run(["python3", "worker.py"])
