@@ -1,6 +1,6 @@
 FROM fedora:42
 
-ENV PYTHON_VERSION=3.10
+ENV PYTHON_VERSION=3.9
 
 RUN dnf -y update && \
     dnf -y install \
