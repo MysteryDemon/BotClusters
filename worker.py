@@ -11,7 +11,6 @@ import random
 from pathlib import Path
 from phrase import WORD_LIST
 from logging.handlers import RotatingFileHandler
-import threading
 import re
 from dotenv import load_dotenv
 import asyncio
@@ -26,8 +25,6 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-bot_lock = threading.Lock()
 
 def generate_prefix():
     """Generate a random prefix for bot naming."""
@@ -125,7 +122,7 @@ def write_supervisord_config(cluster, command):
     directory=/app/{cluster['bot_number'].replace(' ', '_')}
     autostart=true
     autorestart=true
-    startretries=5
+    startretries=12
     stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
     stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
     {f"environment={env_vars}" if env_vars else ""}
@@ -134,61 +131,49 @@ def write_supervisord_config(cluster, command):
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
+def _prepare_bot_dir(cluster):
+    """Synchronous function to prepare the bot directory."""
+    bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
+    venv_dir = bot_dir / 'venv'
+    requirements_file = bot_dir / 'requirements.txt'
+    branch = cluster.get('branch', 'main')
+    
+    if bot_dir.exists():
+        logging.info(f'Removing existing directory: {bot_dir}')
+        shutil.rmtree(bot_dir)
+    
+    logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
+    subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
+    
+    if requirements_file.exists():
+        logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
+        subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
+        pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
+        subprocess.run(pip_command, check=True)
+
 async def start_bot(cluster):
-    """Clone, set up, and start a bot."""
-    with bot_lock:
-        logging.info(f'Starting bot: {cluster["bot_number"]}')
-        bot_env = os.environ.copy()
-        bot_env.update(cluster.get('env', {}))
-        bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
-        venv_dir = bot_dir / 'venv'
-        requirements_file = bot_dir / 'requirements.txt'
-        bot_file = bot_dir / cluster['run_command']
-        branch = cluster.get('branch', 'main')
-        log_dir = Path('/var/log/bots') / cluster['bot_number'].replace(" ", "_")
-
-        try:
-            if bot_dir.exists():
-                logging.info(f'Removing existing directory: {bot_dir}')
-                shutil.rmtree(bot_dir)
-
-            logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
-            subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
-
-            if requirements_file.exists():
-                logging.info(f'Installing requirements for {cluster["bot_number"]}')
-                # Create virtual environment
-                logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-                subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
-                pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
-                subprocess.run(pip_command, check=True)
-
-            if bot_file.suffix == ".sh":
-                command = f"bash {bot_file}"
-            elif bot_file.suffix == ".py":
-                command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
-            else:
-                command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
-
-            write_supervisord_config(cluster, command)
-            await reload_supervisord()
-            logging.info(f"{cluster['bot_number']} started successfully via supervisord.")
-
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Error while processing {cluster['bot_number']}: {e}")
-
-async def sort_bot_run_commands(clusters):
-    """Sort and start bots based on their run command types."""
-    for cluster in clusters:
-        run_command = cluster['run_command']
-        if not run_command.endswith('.sh'):
-            logging.info(f"Setting up isolated venv environment for {cluster['bot_number']}")
-            await start_bot(cluster)
-        else:
-            logging.info(f"Installing normally for {cluster['bot_number']}")
-            await start_bot(cluster)
+    """Prepare and configure a bot."""
+    logging.info(f'Starting bot: {cluster["bot_number"]}')
+    bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
+    venv_dir = bot_dir / 'venv'
+    bot_file = bot_dir / cluster['run_command']
+    
+    # Prepare the bot directory in a thread
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _prepare_bot_dir, cluster)
+    
+    # Determine the command
+    if bot_file.suffix == ".sh":
+        command = f"bash {bot_file}"
+    elif bot_file.suffix == ".py":
+        command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+    else:
+        command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
+    
+    write_supervisord_config(cluster, command)
 
 async def async_supervisorctl(command):
+    """Run a supervisorctl command asynchronously."""
     proc = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
@@ -201,37 +186,67 @@ async def async_supervisorctl(command):
         logging.info(f"Supervisorctl command succeeded: {stdout.decode()}")
 
 async def reload_supervisord():
-    """Reload and update supervisord after modifying configurations."""
+    """Reload and update supervisord configurations."""
     logging.info("Reloading supervisord...")
     await async_supervisorctl("supervisorctl reread")
     await async_supervisorctl("supervisorctl update")
     logging.info("Supervisord updated successfully.")
 
+async def get_process_status(bot_conf_name):
+    """Get the status of a supervisord process."""
+    proc = await asyncio.create_subprocess_shell(
+        f"supervisorctl status {bot_conf_name}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode == 0:
+        status_line = stdout.decode().strip()
+        if status_line:
+            parts = status_line.split()
+            if len(parts) >= 2:
+                return parts[1]
+    return None
+
+async def wait_for_process_stop(bot_conf_name, timeout=30, interval=2):
+    """Wait for a process to stop with a timeout."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        status = await get_process_status(bot_conf_name)
+        if status != 'RUNNING':
+            return True
+        await asyncio.sleep(interval)
+    return False
+
 async def stop_bot(bot_number):
-    """Stop and remove a bot's supervisord configuration."""
+    """Stop a bot and remove its supervisord configuration."""
     logging.info(f"Stopping bot: {bot_number}")
     bot_conf_name = bot_number.replace(" ", "_")
     
-    try:
-        subprocess.run(["supervisorctl", "stop", bot_conf_name], check=False)
-        time.sleep(5)  # Wait for the bot to shutdown gracefully
-    except subprocess.CalledProcessError:
-        logging.error(f"Failed to stop bot {bot_number}")
-
+    await async_supervisorctl(f"supervisorctl stop {bot_conf_name}")
+    if not await wait_for_process_stop(bot_conf_name):
+        logging.warning(f"Process {bot_conf_name} did not stop within timeout.")
+    
     conf_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
     if conf_path.exists():
         conf_path.unlink()
         logging.info(f"Removed supervisord configuration for {bot_number}.")
+
+async def sort_bot_run_commands(clusters):
+    """Start all bots concurrently."""
+    tasks = [start_bot(cluster) for cluster in clusters]
+    await asyncio.gather(*tasks)
     await reload_supervisord()
 
 async def restart_all_bots():
-    """Restart all bots managed by the system."""
-    logging.info('Restarting all bots...')
-    for cluster in clusters:
-        await stop_bot(cluster['bot_number'])
+    """Stop all bots and clean up configurations."""
+    logging.info('Stopping all bots...')
+    tasks = [stop_bot(cluster['bot_number']) for cluster in clusters]
+    await asyncio.gather(*tasks)
     await reload_supervisord()
 
 def signal_handler(sig, frame):
+    """Handle termination signals for graceful shutdown."""
     logging.info('Shutting down...')
     asyncio.run(restart_all_bots())
     exit(0)
@@ -240,6 +255,7 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 async def main_async():
+    """Main function to manage bots."""
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
