@@ -27,7 +27,6 @@ logging.basicConfig(
 )
 
 def generate_prefix():
-    """Generate a random prefix for bot naming."""
     word1 = random.choice(WORD_LIST)
     word2 = random.choice(WORD_LIST)
     prefix = f"{word1} {word2}"
@@ -35,7 +34,6 @@ def generate_prefix():
     return prefix
 
 def validate_config(clusters):
-    """Ensure config is valid before starting bots."""
     required_keys = ['bot_number', 'git_url', 'branch', 'run_command']
     seen_bot_suffixes = set()
     bot_suffix_pattern = re.compile(r'bot\d+$')
@@ -65,7 +63,6 @@ def validate_config(clusters):
     return True
 
 def load_config(file_path):
-    """Load bot configurations from a JSON file."""
     logging.info(f'Loading configuration from {file_path}')
     
     try:
@@ -110,7 +107,6 @@ load_dotenv('cluster.env', override=True)
 clusters = load_config("config.json")
 
 def write_supervisord_config(cluster, command):
-    """Write a supervisord config for the bot."""
     config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
 
@@ -132,7 +128,6 @@ def write_supervisord_config(cluster, command):
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
 def _prepare_bot_dir(cluster):
-    """Synchronous function to prepare the bot directory."""
     bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
     venv_dir = bot_dir / 'venv'
     requirements_file = bot_dir / 'requirements.txt'
@@ -152,17 +147,13 @@ def _prepare_bot_dir(cluster):
         subprocess.run(pip_command, check=True)
 
 async def start_bot(cluster):
-    """Prepare and configure a bot."""
     logging.info(f'Starting bot: {cluster["bot_number"]}')
     bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
     venv_dir = bot_dir / 'venv'
     bot_file = bot_dir / cluster['run_command']
-    
-    # Prepare the bot directory in a thread
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _prepare_bot_dir, cluster)
     
-    # Determine the command
     if bot_file.suffix == ".sh":
         command = f"bash {bot_file}"
     elif bot_file.suffix == ".py":
@@ -173,7 +164,6 @@ async def start_bot(cluster):
     write_supervisord_config(cluster, command)
 
 async def async_supervisorctl(command):
-    """Run a supervisorctl command asynchronously."""
     proc = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
@@ -186,14 +176,12 @@ async def async_supervisorctl(command):
         logging.info(f"Supervisorctl command succeeded: {stdout.decode()}")
 
 async def reload_supervisord():
-    """Reload and update supervisord configurations."""
     logging.info("Reloading supervisord...")
     await async_supervisorctl("supervisorctl reread")
     await async_supervisorctl("supervisorctl update")
     logging.info("Supervisord updated successfully.")
 
 async def get_process_status(bot_conf_name):
-    """Get the status of a supervisord process."""
     proc = await asyncio.create_subprocess_shell(
         f"supervisorctl status {bot_conf_name}",
         stdout=asyncio.subprocess.PIPE,
@@ -209,7 +197,6 @@ async def get_process_status(bot_conf_name):
     return None
 
 async def wait_for_process_stop(bot_conf_name, timeout=30, interval=2):
-    """Wait for a process to stop with a timeout."""
     start_time = time.time()
     while time.time() - start_time < timeout:
         status = await get_process_status(bot_conf_name)
@@ -219,7 +206,6 @@ async def wait_for_process_stop(bot_conf_name, timeout=30, interval=2):
     return False
 
 async def stop_bot(bot_number):
-    """Stop a bot and remove its supervisord configuration."""
     logging.info(f"Stopping bot: {bot_number}")
     bot_conf_name = bot_number.replace(" ", "_")
     
@@ -233,20 +219,17 @@ async def stop_bot(bot_number):
         logging.info(f"Removed supervisord configuration for {bot_number}.")
 
 async def sort_bot_run_commands(clusters):
-    """Start all bots concurrently."""
     tasks = [start_bot(cluster) for cluster in clusters]
     await asyncio.gather(*tasks)
     await reload_supervisord()
 
 async def restart_all_bots():
-    """Stop all bots and clean up configurations."""
     logging.info('Stopping all bots...')
     tasks = [stop_bot(cluster['bot_number']) for cluster in clusters]
     await asyncio.gather(*tasks)
     await reload_supervisord()
 
 def signal_handler(sig, frame):
-    """Handle termination signals for graceful shutdown."""
     logging.info('Shutting down...')
     asyncio.run(restart_all_bots())
     exit(0)
@@ -255,7 +238,6 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 async def main_async():
-    """Main function to manage bots."""
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
