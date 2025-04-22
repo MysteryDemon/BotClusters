@@ -44,7 +44,6 @@ MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
 
 def parse_supervisor_status(status_line):
-    """Parse a single line of supervisor status output."""
     try:
         parts = status_line.strip().split()
         if len(parts) >= 2:
@@ -64,7 +63,6 @@ def parse_supervisor_status(status_line):
     return None
 
 def run_supervisor_command(command, process_name=None, timeout=30):
-    """Execute a supervisord command with proper error handling and process isolation."""
     try:
         cmd = ["supervisorctl"]
         if command:
@@ -99,7 +97,6 @@ def run_supervisor_command(command, process_name=None, timeout=30):
         return {"status": "error", "message": str(e)}
 
 def verify_process_status(process_name, expected_status=None):
-    """Verify the status of a specific process."""
     try:
         result = run_supervisor_command("status", process_name)
         if result["status"] == "success":
@@ -112,7 +109,6 @@ def verify_process_status(process_name, expected_status=None):
         return None
 
 def broadcast_status_update():
-    """Broadcast current status to all connected clients."""
     try:
         with app.app_context():
             status = run_supervisor_command("status")
@@ -135,7 +131,6 @@ def broadcast_status_update():
         return False
 
 def update_process_code(process_name, config_content=None):
-    """Update the code for the given process by pulling the latest changes from Git."""
     try:
         if config_content:
             config = configparser.ConfigParser()
@@ -203,7 +198,6 @@ def cluster():
 
 @app.route('/supervisor/status', methods=['GET'])
 def list_supervisor_processes():
-    """Get status of all supervisor processes."""
     status = run_supervisor_command("status")
     if status["status"] == "success":
         processes = []
@@ -216,19 +210,16 @@ def list_supervisor_processes():
 
 @socketio.on('connect')
 def handle_connect():
-    """Handle client connection."""
     logger.info("Client connected")
     emit('connected', {'data': 'Connected'})
     broadcast_status_update()
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    """Handle client disconnection."""
     logger.info("Client disconnected")
 
 @socketio.on('request_status')
 def handle_status_request():
-    """Handle WebSocket request for process status updates."""
     try:
         status = run_supervisor_command("status")
         if status["status"] == "success":
@@ -263,7 +254,6 @@ def handle_status_request():
 
 @app.route('/supervisor/<action>/<process_name>', methods=['POST'])
 def manage_supervisor_process(action, process_name):
-    """Handle process management actions (start/stop/restart)."""
     logger.info(f"Received {action} request for process: {process_name}")
     
     if action not in ["start", "stop", "restart"]:
@@ -396,7 +386,6 @@ def manage_supervisor_process(action, process_name):
 
 @app.route('/supervisor/log/<process_name>', methods=['GET'])
 def download_supervisor_log(process_name):
-    """Handle log file download requests."""
     try:
         if not re.match(r'^[a-zA-Z0-9_\- ]+$', process_name):
             return jsonify({"status": "error", "message": "Invalid process name"}), 400
@@ -439,7 +428,6 @@ def download_supervisor_log(process_name):
 
 @app.errorhandler(Exception)
 def handle_error(e):
-    """Global error handler"""
     logger.error(f"Unhandled error: {str(e)}")
     return jsonify({
         "status": "error",
