@@ -25,21 +25,15 @@ RUN bash -c '\
     git clone https://github.com/pyenv/pyenv-virtualenv.git $PYENV_ROOT/plugins/pyenv-virtualenv && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
+    export PYTHON_CONFIGURE_OPTS="--without-tk" && \
     pyenv install 3.8.18 && \
-    pyenv install 3.9.18'
-
-RUN dnf -y install tcl-devel tk-devel && dnf clean all
-
-RUN bash -c '\
-    export PYENV_ROOT="/root/.pyenv" && \
-    export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH" && \
-    eval "$(pyenv init -)" && \
-    eval "$(pyenv virtualenv-init -)" && \
+    pyenv install 3.9.18 && \
     pyenv install 3.10.14 && \
     pyenv install 3.11.9 && \
     pyenv install 3.12.3 && \
+    unset PYTHON_CONFIGURE_OPTS && \
     pyenv install 3.13.0b1 && \
-    pyenv global system'
+    pyenv global 3.13.0b1'
 
 ENV SUPERVISORD_CONF_DIR=/etc/supervisor/conf.d
 ENV SUPERVISORD_LOG_DIR=/var/log/supervisor
