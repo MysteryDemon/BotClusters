@@ -91,8 +91,8 @@ def load_config(file_path):
                 "git_url": details[1],
                 "branch": details[2],
                 "run_command": details[3],
-                "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {}
-            })
+                "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
+                "python_version": details[5] if len(details) > 5 else None })
 
         except json.JSONDecodeError:
             logging.error(f"Error decoding JSON for {cluster['name']}, skipping.")
@@ -132,17 +132,18 @@ def _prepare_bot_dir(cluster):
     venv_dir = bot_dir / 'venv'
     requirements_file = bot_dir / 'requirements.txt'
     branch = cluster.get('branch', 'main')
-    
+    python_executable = f"python{cluster.get('python_version')}" if cluster.get('python_version') else "python3"
+
     if bot_dir.exists():
         logging.info(f'Removing existing directory: {bot_dir}')
         shutil.rmtree(bot_dir)
-    
+
     logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
     subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
-    
+
     if requirements_file.exists():
-        logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-        subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
+        logging.info(f'Creating virtual environment for {cluster["bot_number"]} using {python_executable}')
+        subprocess.run([python_executable, '-m', 'venv', str(venv_dir)], check=True)
         pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
         subprocess.run(pip_command, check=True)
 
@@ -153,14 +154,18 @@ async def start_bot(cluster):
     bot_file = bot_dir / cluster['run_command']
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _prepare_bot_dir, cluster)
-    
+
+    python_executable = venv_dir / 'bin' / 'python3'
+    if cluster.get('python_version'):
+        python_executable = venv_dir / 'bin' / f'python{cluster["python_version"]}'
+
     if bot_file.suffix == ".sh":
         command = f"bash {bot_file}"
     elif bot_file.suffix == ".py":
-        command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+        command = f"{python_executable} {bot_file}"
     else:
-        command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
-    
+        command = f"{python_executable} -m {bot_file.stem}"
+
     write_supervisord_config(cluster, command)
 
 async def async_supervisorctl(command):
