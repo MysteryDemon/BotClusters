@@ -31,9 +31,8 @@ RUN bash -c '\
     pyenv install 3.10.14 && \
     pyenv install 3.11.9 && \
     pyenv install 3.12.3 && \
-    unset PYTHON_CONFIGURE_OPTS && \
-    pyenv install 3.13.0b1 && \
-    pyenv global 3.13.0b1'
+    pyenv install 3.13.3 && \
+    unset PYTHON_CONFIGURE_OPTS'
 
 ENV SUPERVISORD_CONF_DIR=/etc/supervisor/conf.d
 ENV SUPERVISORD_LOG_DIR=/var/log/supervisor
