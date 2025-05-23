@@ -7,7 +7,12 @@ RUN dnf -y update && \
     dnf -y install \
     g++ make wget pv git bash xz gawk \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-devel \
-    mediainfo psmisc procps-ng supervisor && \
+    mediainfo psmisc procps-ng supervisor \
+    zlib-devel bzip2 bzip2-devel readline-devel \
+    sqlite sqlite-devel openssl-devel libffi-devel \
+    xz-devel findutils \
+    libnsl2-devel libuuid-devel tk-devel gdbm-devel ncurses-devel \
+    tar curl && \
     dnf clean all
 
 RUN python${PYTHON_VERSION} -m ensurepip --upgrade && \
