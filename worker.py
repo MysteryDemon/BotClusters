@@ -34,19 +34,14 @@ def generate_prefix():
     return prefix
 
 def get_pyenv_python(version):
-    candidates = [version]
-    if '.' in version:
-        candidates.append('.'.join(version.split('.')[:2]))
-    for candidate in candidates:
-        try:
-            python_path = subprocess.check_output(
-                ["pyenv", "which", f"python{candidate}"]
-            ).decode().strip()
-            return python_path
-        except Exception as e:
-            continue
-    logging.warning(f"pyenv could not find python {version}; using 'python3' fallback.")
-    return shutil.which("python3") or "python3"
+    major_minor = '.'.join(version.split('.')[:2])
+    shim = f"python{major_minor}"
+    python_path = shutil.which(shim)
+    if python_path:
+        return python_path
+    else:
+        logging.warning(f"{shim} not found in PATH. Falling back to 'python3'.")
+        return shutil.which("python3") or "python3"
     
 def validate_config(clusters):
     required_keys = ['bot_number', 'git_url', 'branch', 'run_command']
