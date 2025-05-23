@@ -178,7 +178,7 @@ async def start_bot(cluster):
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _prepare_bot_dir, cluster)
 
-    python_executable = venv_dir / 'bin' / 'python'
+    python_executable = venv_dir / 'bin' / 'python3'
     if cluster.get('python_version'):
         python_executable = venv_dir / 'bin' / f'python{cluster["python_version"]}'
 
