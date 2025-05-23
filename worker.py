@@ -35,13 +35,17 @@ def generate_prefix():
 
 def get_pyenv_python(version):
     major_minor = '.'.join(version.split('.')[:2])
-    shim = f"python{major_minor}"
-    python_path = shutil.which(shim)
-    if python_path:
-        return python_path
-    else:
-        logging.warning(f"{shim} not found in PATH. Falling back to 'python3'.")
-        return shutil.which("python3") or "python3"
+    shim = shutil.which(f"python{major_minor}")
+    if shim:
+        return shim
+    logging.warning(f"pyenv shim python{major_minor} not found in PATH. Falling back to 'python3'.")
+    return shutil.which("python3") or "python3"
+
+def run_with_pyenv(version, command_args, **kwargs):
+    env = os.environ.copy()
+    env["PYENV_VERSION"] = version
+    kwargs["env"] = env
+    return subprocess.run(command_args, **kwargs)
     
 def validate_config(clusters):
     required_keys = ['bot_number', 'git_url', 'branch', 'run_command']
@@ -154,13 +158,18 @@ def _prepare_bot_dir(cluster):
         python_executable = get_pyenv_python(version)
     else:
         python_executable = shutil.which("python3") or "python3"
-
+        
     if requirements_file.exists():
         logging.info(f'Creating virtual environment for {cluster["bot_number"]} using {python_executable}')
-        subprocess.run([python_executable, '-m', 'venv', str(venv_dir)], check=True)
-        pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
-        subprocess.run(pip_command, check=True)
-
+        if version:
+            run_with_pyenv(version, [python_executable, '-m', 'venv', str(venv_dir)], check=True)
+            pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
+            run_with_pyenv(version, pip_command, check=True)
+        else:
+             subprocess.run([python_executable, '-m', 'venv', str(venv_dir)], check=True)
+             pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
+             subprocess.run(pip_command, check=True)
+                
 async def start_bot(cluster):
     logging.info(f'Starting bot: {cluster["bot_number"]}')
     bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
