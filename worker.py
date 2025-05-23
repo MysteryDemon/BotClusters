@@ -33,6 +33,21 @@ def generate_prefix():
     logging.info(f'Generated prefix: {prefix}')
     return prefix
 
+def get_pyenv_python(version):
+    candidates = [version]
+    if '.' in version:
+        candidates.append('.'.join(version.split('.')[:2]))
+    for candidate in candidates:
+        try:
+            python_path = subprocess.check_output(
+                ["pyenv", "which", f"python{candidate}"]
+            ).decode().strip()
+            return python_path
+        except Exception as e:
+            continue
+    logging.warning(f"pyenv could not find python {version}; using 'python3' fallback.")
+    return shutil.which("python3") or "python3"
+    
 def validate_config(clusters):
     required_keys = ['bot_number', 'git_url', 'branch', 'run_command']
     seen_bot_suffixes = set()
@@ -132,14 +147,18 @@ def _prepare_bot_dir(cluster):
     venv_dir = bot_dir / 'venv'
     requirements_file = bot_dir / 'requirements.txt'
     branch = cluster.get('branch', 'main')
-    python_executable = f"python{cluster.get('python_version')}" if cluster.get('python_version') else "python3"
-
+    
     if bot_dir.exists():
         logging.info(f'Removing existing directory: {bot_dir}')
         shutil.rmtree(bot_dir)
-
+    
     logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
     subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
+    version = cluster.get("python_version")
+    if version:
+        python_executable = get_pyenv_python(version)
+    else:
+        python_executable = shutil.which("python3") or "python3"
 
     if requirements_file.exists():
         logging.info(f'Creating virtual environment for {cluster["bot_number"]} using {python_executable}')
