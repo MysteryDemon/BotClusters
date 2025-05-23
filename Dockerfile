@@ -30,8 +30,10 @@ RUN bash -c '\
     git clone https://github.com/pyenv/pyenv-virtualenv.git $PYENV_ROOT/plugins/pyenv-virtualenv && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
-    PYTHON_CONFIGURE_OPTS="--without-tk" pyenv install 3.8.18 && \
-    PYTHON_CONFIGURE_OPTS="--without-tk" pyenv install 3.9.18 && \
+    export PYTHON_CONFIGURE_OPTS="--without-tk" && \
+    pyenv install 3.8.18 && \
+    pyenv install 3.9.18 && \
+    unset PYTHON_CONFIGURE_OPTS && \
     pyenv install 3.10.14 && \
     pyenv install 3.11.9 && \
     pyenv install 3.12.3 && \
