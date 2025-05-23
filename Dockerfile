@@ -26,12 +26,10 @@ ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
 RUN bash -c '\
     export PYENV_ROOT="/root/.pyenv" && \
     export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH" && \
-    git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT && \
-    git clone https://github.com/pyenv/pyenv-virtualenv.git $PYENV_ROOT/plugins/pyenv-virtualenv && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
-    pyenv install 3.8.18 && \
-    pyenv install 3.9.18 && \
+    PYTHON_CONFIGURE_OPTS="--without-tk" pyenv install 3.8.18 && \
+    PYTHON_CONFIGURE_OPTS="--without-tk" pyenv install 3.9.18 && \
     pyenv install 3.10.14 && \
     pyenv install 3.11.9 && \
     pyenv install 3.12.3 && \
