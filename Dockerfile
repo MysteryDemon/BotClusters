@@ -4,15 +4,10 @@ ARG PYTHON_VERSION=3.10
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 RUN dnf -y update && \
-    dnf -y install \
-    g++ make wget pv git bash xz gawk \
-    python${PYTHON_VERSION} python${PYTHON_VERSION}-devel \
-    mediainfo psmisc procps-ng supervisor \
-    zlib-devel bzip2 bzip2-devel readline-devel \
-    sqlite sqlite-devel openssl-devel libffi-devel \
-    xz-devel findutils \
-    libnsl2-devel libuuid-devel tk-devel gdbm-devel ncurses-devel \
-    tar curl && \
+    dnf -y install g++ make wget pv git bash xz gawk \
+    python${PYTHON_VERSION} python${PYTHON_VERSION}-devel mediainfo psmisc procps-ng supervisor \
+    zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel libffi-devel \
+    xz-devel findutils libnsl2-devel libuuid-devel gdbm-devel ncurses-devel tar curl && \
     dnf clean all
 
 RUN python${PYTHON_VERSION} -m ensurepip --upgrade && \
@@ -30,10 +25,16 @@ RUN bash -c '\
     git clone https://github.com/pyenv/pyenv-virtualenv.git $PYENV_ROOT/plugins/pyenv-virtualenv && \
     eval "$(pyenv init -)" && \
     eval "$(pyenv virtualenv-init -)" && \
-    export PYTHON_CONFIGURE_OPTS="--without-tk" && \
     pyenv install 3.8.18 && \
-    pyenv install 3.9.18 && \
-    unset PYTHON_CONFIGURE_OPTS && \
+    pyenv install 3.9.18'
+
+RUN dnf -y install tcl-devel tk-devel && dnf clean all
+
+RUN bash -c '\
+    export PYENV_ROOT="/root/.pyenv" && \
+    export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH" && \
+    eval "$(pyenv init -)" && \
+    eval "$(pyenv virtualenv-init -)" && \
     pyenv install 3.10.14 && \
     pyenv install 3.11.9 && \
     pyenv install 3.12.3 && \
