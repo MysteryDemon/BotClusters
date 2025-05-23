@@ -6,7 +6,7 @@ usage() {
 }
 
 APT_PACKAGES="ngnix"
-PIP_PACKAGES="pytest gunicorn"
+PIP_PACKAGES="pytest gunicorn gallery-dl"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
