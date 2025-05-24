@@ -139,7 +139,7 @@ async def cronjob_restart_loop(clusters, last_restart):
                 logging.info(f"Restarting bot {bot_key} on schedule ({cron})")
                 await stop_bot(bot_key)
                 await start_bot(cluster)
-                last_restart[bot_key] = now
+                last_restart[bot_key] = time.time()
             else:
                 logging.info(f"No restart needed for {bot_key}. Time since last: {now - last} seconds")
         await asyncio.sleep(5)
