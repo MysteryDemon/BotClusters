@@ -162,6 +162,7 @@ def write_supervisord_config(cluster, command):
     config_content = "\n".join(lines)
     config_path.write_text(config_content)
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
+
 def _prepare_bot_dir(cluster):
     bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
     venv_dir = bot_dir / 'venv'
