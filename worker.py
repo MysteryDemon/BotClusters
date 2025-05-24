@@ -152,7 +152,7 @@ def write_supervisord_config(cluster, command):
         f"stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log"
     ]
 
-    if cluster.get("env"):
+    if cluster.get("env") and isinstance(cluster["env"], dict) and len(cluster["env"]) > 0:
         env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()])
         lines.append(f"environment={env_vars}")
 
