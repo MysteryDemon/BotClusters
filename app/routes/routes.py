@@ -2,6 +2,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import os
+import signal
 import subprocess
 import re
 from datetime import datetime
@@ -63,6 +64,53 @@ def parse_supervisor_status(status_line):
     except Exception as e:
         logger.error(f"Error parsing supervisor status line: {e}")
     return None
+
+def pause_process(process_name):
+    result = run_supervisor_command("status", process_name)
+    if result["status"] == "success":
+        # Get PID from status message
+        proc = parse_supervisor_status(result["message"])
+        if proc and proc["pid"]:
+            try:
+                os.kill(int(proc["pid"]), signal.SIGSTOP)
+                return {"status": "success", "message": f"Paused process {process_name}"}
+            except Exception as e:
+                logger.error(f"Error pausing process {process_name}: {e}")
+                return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Process not running or PID not found"}
+
+@app.route('/supervisor/pause/<process_name>', methods=['POST'])
+def pause_supervisor_process(process_name):
+    logger.info(f"Received pause request for process: {process_name}")
+    result = pause_process(process_name)
+    if result["status"] == "success":
+        broadcast_status_update()
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+@app.route('/supervisor/resume/<process_name>', methods=['POST'])
+def resume_supervisor_process(process_name):
+    logger.info(f"Received resume request for process: {process_name}")
+    result = resume_process(process_name)
+    if result["status"] == "success":
+        broadcast_status_update()
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+def resume_process(process_name):
+    result = run_supervisor_command("status", process_name)
+    if result["status"] == "success":
+        proc = parse_supervisor_status(result["message"])
+        if proc and proc["pid"]:
+            try:
+                os.kill(int(proc["pid"]), signal.SIGCONT)
+                return {"status": "success", "message": f"Resumed process {process_name}"}
+            except Exception as e:
+                logger.error(f"Error resuming process {process_name}: {e}")
+                return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Process not running or PID not found"}
 
 def run_supervisor_command(command, process_name=None, timeout=30):
     try:
