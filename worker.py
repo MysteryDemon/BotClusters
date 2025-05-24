@@ -137,34 +137,36 @@ def parse_cron_interval(cron_str):
     logging.warning(f"Failed to parse cron interval: {cron_str}")
     return None
 
-async def cronjob_restart_loop(clusters, last_restart):
-    logging.info("Starting cronjob_restart_loop...")
+async def cronjob_restart_loop(clusters, next_run_times):
+    logging.info("Starting cronjob_restart_loop with simple interval tracking...")
+
+    for cluster in clusters:
+        cron_str = cluster.get("cron")
+        if not cron_str:
+            continue
+        interval_seconds = parse_cron_interval(cron_str)
+        if interval_seconds:
+            next_run_times[cluster['bot_number']] = time.time() + interval_seconds
+
     while True:
+        now = time.time()
         for cluster in clusters:
-            bot_key = cluster.get('bot_number')
-            cron = cluster.get("cron")
-            logging.info(f"Checking cluster: {bot_key}, cron: {cron}")
-            if not cron:
-                logging.info(f"No cron for {bot_key}, skipping.")
+            bot_key = cluster.get("bot_number")
+            cron_str = cluster.get("cron")
+            if not cron_str:
                 continue
-            interval = parse_cron_interval(cron)
-            if not interval:
-                logging.warning(f"Invalid cron value: {cron} for {bot_key}")
+
+            interval_seconds = parse_cron_interval(cron_str)
+            next_time = next_run_times.get(bot_key)
+
+            if not interval_seconds or next_time is None:
                 continue
-            now = time.time()
-            last = last_restart.get(bot_key, 0)
-            delta = relativedelta(**interval)
-            seconds = (delta.years * 365*24*3600 + delta.months * 30*24*3600 +
-                       delta.days * 24*3600 + delta.hours * 3600 +
-                       delta.minutes * 60 + delta.seconds)
-            
-            logging.info(f"Bot {bot_key}: Now: {now}, Last: {last}, Interval (s): {seconds}")
-            if now - last >= seconds:
-                logging.info(f"Restarting bot {bot_key} on schedule ({cron})")
+
+            if now >= next_time:
+                logging.info(f"Restarting bot {bot_key} (interval: {cron_str})")
                 await restart_bot_cron(cluster)
-                last_restart[bot_key] = time.time() - 9999 
-            else:
-                logging.info(f"No restart needed for {bot_key}. Time since last: {now - last} seconds")
+                next_run_times[bot_key] = now + interval_seconds
+                logging.info(f"Next restart for {bot_key} scheduled at {time.ctime(next_run_times[bot_key])}")
         await asyncio.sleep(5)
 
 def load_config(file_path):
@@ -366,12 +368,12 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 async def main_async():
-    last_restart = {}
+    next_run_times = {}
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
-    asyncio.create_task(cronjob_restart_loop(clusters, last_restart))
+    asyncio.create_task(cronjob_restart_loop(clusters, next_run_times))
     await cleanup_existing_bots()
     if args.restart:
         logging.info('Restarting bot manager...')
