@@ -27,6 +27,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 - 🔒 **Private Repo Support**: *Clone and run bots from private repositories using tokens*
 - 📦 **Custom installation**: *Custom installation of apt $ pip packages in `install.sh`*
 - 🎛️ **Web Integration**: *Flask-based web application support for services like Render and Koyeb*
+- 🐍 **Multi-Python Support**: *Supports multiple python version for each bot config*
   
 ---
 
@@ -49,6 +50,18 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ---
 
+## ✅ Supported Python Versions
+
+|----------|-------------|----------|
+| `python3.8` |
+| `python3.9`|
+| `python3.10`|
+| `python3.11`|
+| `python3.12`|
+| `python3.13`|
+
+---
+
 ## 🛠️ ***Setup Guide***
 
 * **Args:**
@@ -64,6 +77,11 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 * **For Private Repositories:**
 ```
 ["bot01", "https://mysterydemon:<your_github_private_token>@github.com/MysteryDemon/botcluster.git", "main", "main.py", {"PORT": "6060"}]
+```
+
+* **For Custom Python Version:**
+```
+["bot01", "https://mysterydemon:<your_github_private_token>@github.com/MysteryDemon/botcluster.git", "main", "main.py", {"PORT": "6060"}, "3.9"]
 ```
   
 ---
