@@ -217,6 +217,18 @@ button:active {
     color: white;
 }
 
+.pause-btn {
+    background-color: #f1c40f;
+    color: #2c3e50;
+}
+.status-paused {
+    background-color: rgba(241, 196, 15, 0.15);
+    color: #f1c40f;
+}
+.status-paused::before {
+    background-color: #f1c40f;
+}
+
 .stop-btn {
     background-color: #e74c3c;
     color: white;
