@@ -1,7 +1,7 @@
 <div align="center">
     <a href="https://github.com/MysteryDemon/BotClusters">
         <kbd>
-            <img width="2000" src="https://te.legra.ph/file/337898fcd33f27b9de71d.jpg" alt="Bot Clusters Logo">
+            <img width="2000" src="[https://te.legra.ph/file/337898fcd33f27b9de71d.jpg](https://i.ibb.co/k2TBk6wR/IMG-20250524-213433-914-edit-261278564505495.png)" alt="Bot Clusters Logo">
         </kbd>
     </a>
 </div>
