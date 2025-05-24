@@ -366,13 +366,13 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 async def main_async():
+    last_restart = {}
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
     asyncio.create_task(cronjob_restart_loop(clusters, last_restart))
     await cleanup_existing_bots()
-    last_restart = {}
     if args.restart:
         logging.info('Restarting bot manager...')
         await asyncio.gather(*(async_supervisorctl(
