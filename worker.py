@@ -23,14 +23,11 @@ SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
 file_handler = RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)
 console_handler = logging.StreamHandler()
-
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
-
 file_handler.setLevel(logging.DEBUG)
 console_handler.setLevel(logging.DEBUG)
-
 logging.getLogger().handlers.clear()
 logging.getLogger().addHandler(file_handler)
 logging.getLogger().addHandler(console_handler)
