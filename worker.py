@@ -370,6 +370,7 @@ async def main_async():
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
+    asyncio.create_task(cronjob_restart_loop(clusters, last_restart))
     await cleanup_existing_bots()
     last_restart = {}
     if args.restart:
@@ -386,7 +387,6 @@ async def main_async():
             if cron:
                 bot_key = cluster['bot_number']
                 last_restart[bot_key] = time.time()
-    asyncio.create_task(cronjob_restart_loop(clusters, last_restart))
 
 if __name__ == "__main__":
     asyncio.run(main_async())
