@@ -7,7 +7,7 @@ usage() {
 }
 
 DNF_PACKAGES=""
-PIP_PACKAGES="gunicorn python-dateutil"
+PIP_PACKAGES="croniter python-dateutil"
 
 echo "[INFO] Starting install.sh script"
 
