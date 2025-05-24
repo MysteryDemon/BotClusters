@@ -16,15 +16,23 @@ from dotenv import load_dotenv
 import asyncio
 
 LOG_FILE = 'bot_manager.log'
-LOG_SIZE = 10 * 1024 * 1024  # 10 MB
+LOG_SIZE = 10 * 1024 * 1024 
 LOG_BACKUP_COUNT = 5
-SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
-logging.basicConfig(
-    handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)],
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)
+console_handler = logging.StreamHandler()
+
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+file_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.DEBUG)
+
+logging.getLogger().handlers.clear()
+logging.getLogger().addHandler(file_handler)
+logging.getLogger().addHandler(console_handler)
+logging.getLogger().setLevel(logging.DEBUG)
 
 def generate_prefix():
     word1 = random.choice(WORD_LIST)
