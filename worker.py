@@ -94,6 +94,7 @@ async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', e
         await asyncio.sleep(interval_hours * 3600)
 
 def parse_cron_interval(cron_str):
+    logging.info(f"Parsing cron interval: {cron_str}")
     units = {
         "sec": "seconds",
         "min": "minutes",
@@ -107,31 +108,39 @@ def parse_cron_interval(cron_str):
         value, unit = match.groups()
         value = int(value)
         unit = units[unit]
+        logging.info(f"Parsed cron: {value} {unit}")
         return {unit: value}
+    logging.warning(f"Failed to parse cron interval: {cron_str}")
     return None
 
 async def cronjob_restart_loop(clusters, last_restart):
+    logging.info("Starting cronjob_restart_loop...")
     while True:
         for cluster in clusters:
+            bot_key = cluster.get('bot_number')
             cron = cluster.get("cron")
+            logging.info(f"Checking cluster: {bot_key}, cron: {cron}")
             if not cron:
+                logging.info(f"No cron for {bot_key}, skipping.")
                 continue
             interval = parse_cron_interval(cron)
             if not interval:
-                logging.warning(f"Invalid cron value: {cron} for {cluster['bot_number']}")
+                logging.warning(f"Invalid cron value: {cron} for {bot_key}")
                 continue
             now = time.time()
-            bot_key = cluster['bot_number']
             last = last_restart.get(bot_key, 0)
             delta = relativedelta(**interval)
             seconds = (delta.years * 365*24*3600 + delta.months * 30*24*3600 +
                        delta.days * 24*3600 + delta.hours * 3600 +
                        delta.minutes * 60 + delta.seconds)
+            logging.info(f"Bot {bot_key}: Now: {now}, Last: {last}, Interval (s): {seconds}")
             if now - last >= seconds:
                 logging.info(f"Restarting bot {bot_key} on schedule ({cron})")
                 await stop_bot(bot_key)
                 await start_bot(cluster)
                 last_restart[bot_key] = now
+            else:
+                logging.info(f"No restart needed for {bot_key}. Time since last: {now - last} seconds")
         await asyncio.sleep(5)
 
 def load_config(file_path):
