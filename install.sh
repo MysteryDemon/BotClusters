@@ -6,8 +6,8 @@ usage() {
     exit 1
 }
 
-DNF_PACKAGES=""
-PIP_PACKAGES="croniter python-dateutil"
+DNF_PACKAGES="nano"
+PIP_PACKAGES="croniter python-dateutil apscheduler"
 
 echo "[INFO] Starting install.sh script"
 
