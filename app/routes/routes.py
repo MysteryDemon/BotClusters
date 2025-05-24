@@ -64,7 +64,7 @@ def parse_supervisor_status(status_line):
                 "name": name,
                 "status": status,
                 "pid": pid_match.group(1) if pid_match else None,
-                "uptime": uptime_match.group(1) if uptime_match else "0:00:00"
+                "uptime": uptime_match.group(1) if uptime_match else "0:00:00",
                 "paused": paused
             }
     except Exception as e:
