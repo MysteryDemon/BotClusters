@@ -127,7 +127,6 @@ function updateBotCards(processes) {
         const botCard = document.createElement('div');
         botCard.className = 'bot-card';
         const isRunning = process.status === 'RUNNING';
-        const isPaused = process.paused;
 
         // Format the bot name using the actual bot number from the process name
         const displayName = formatBotName(process.name);
@@ -136,37 +135,41 @@ function updateBotCards(processes) {
         const now = new Date();
         const utcTime = now.toISOString().replace('T', ' ').slice(0, 19);
 
-botCard.innerHTML = `
-    <div class="bot-header">
-        <h2>${displayName}</h2>
-        <span class="bot-status ${isRunning && !isPaused ? 'status-online' : isPaused ? 'status-paused' : 'status-offline'}">
-            ${isRunning && !isPaused ? 'Online' : isPaused ? 'Paused' : 'Offline'}
-        </span>
-    </div>
-    <div class="bot-info">
-        <!-- ... -->
-    </div>
-    <div class="bot-controls">
-        <button onclick="toggleBot('${process.name}', '${process.status}')" 
-                class="control-btn ${isRunning && !isPaused ? 'stop-btn' : 'start-btn'}"
-                ${isPaused ? 'disabled' : ''}>
-            ${isRunning && !isPaused ? 'Stop' : (isPaused ? 'Stopped' : 'Start')}
-        </button>
-        <button onclick="restartBot('${process.name}')" 
-                class="control-btn restart-btn"
-                ${!isRunning || isPaused ? 'disabled' : ''}>
-            Restart
-        </button>
-        <button onclick="${isPaused ? `resumeBot('${process.name}')` : `pauseBot('${process.name}')`}" 
-                class="control-btn pause-btn"
-                ${!isRunning ? 'disabled' : ''}>
-            ${isPaused ? 'Resume' : 'Pause'}
-        </button>
-        <button onclick="viewLogs('${process.name}')" class="control-btn log-btn">
-            View Logs
-        </button>
-    </div>
-`;
+        botCard.innerHTML = `
+            <div class="bot-header">
+                <h2>${displayName}</h2>
+                <span class="bot-status ${isRunning && !isPaused ? 'status-online' : isPaused ? 'status-paused' : 'status-offline'}">
+                    ${isRunning && !isPaused ? 'Online' : isPaused ? 'Paused' : 'Offline'}
+                </span> 
+            </div>
+            <div class="bot-info">
+                <p><strong>Process Name:</strong> ${process.name}</p>
+                <p><strong>Status:</strong> ${process.status}</p>
+                <p><strong>PID:</strong> ${process.pid || 'N/A'}</p>
+                <p><strong>Uptime:</strong> ${process.uptime || '0:00:00'}</p>
+                <p><strong>Last Updated:</strong> ${utcTime}</p>
+            </div>
+            <div class="bot-controls">
+                <button onclick="toggleBot('${process.name}', '${process.status}')" 
+                        class="control-btn ${isRunning ? 'stop-btn' : 'start-btn'}">
+                    ${isRunning ? 'Stop' : 'Killing..'}
+                </button>
+                <button onclick="restartBot('${process.name}')" 
+                        class="control-btn restart-btn"
+                        ${!isRunning ? 'disabled' : ''}>
+                    Restart
+                </button>
+                <button onclick="${isPaused ? `resumeBot('${process.name}')` : `pauseBot('${process.name}')`}" 
+                        class="control-btn pause-btn"
+                        ${!isRunning ? 'disabled' : ''}>
+                    ${isPaused ? 'Resume' : 'Pause'}
+                </button>
+                <button onclick="viewLogs('${process.name}')" class="control-btn log-btn">
+                    View Logs
+                </button>
+            </div>
+        `;
+
         botGrid.appendChild(botCard);
     });
 }
@@ -215,6 +218,24 @@ function restartBot(processName) {
     });
 }
 
+function pauseBot(processName) {
+    fetch(`/supervisor/pause/${processName}`, { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') setTimeout(requestStatus, 1000);
+        else alert(`Error: ${data.message}`);
+    });
+}
+
+function resumeBot(processName) {
+    fetch(`/supervisor/resume/${processName}`, { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') setTimeout(requestStatus, 1000);
+        else alert(`Error: ${data.message}`);
+    });
+}
+
 function viewLogs(processName) {
     fetch(`/supervisor/log/${processName}`)
     .then(response => {
@@ -256,36 +277,3 @@ window.onbeforeunload = function() {
     if (updateInterval) clearInterval(updateInterval);
 };
 
-function pauseBot(processName) {
-    fetch(`/supervisor/pause/${processName}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            setTimeout(requestStatus, 1000);
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    })
-    .catch(error => {
-        alert(`An error occurred while trying to pause the process.`);
-    });
-}
-
-function resumeBot(processName) {
-    fetch(`/supervisor/resume/${processName}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            setTimeout(requestStatus, 1000);
-        } else {
-            alert(`Error: ${data.message}`);
-        }
-    })
-    .catch(error => {
-        alert(`An error occurred while trying to resume the process.`);
-    });
-}
