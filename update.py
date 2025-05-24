@@ -16,7 +16,7 @@ basicConfig(format="[%(asctime)s] [%(name)s | %(levelname)s] - %(message)s [%(fi
 load_dotenv('cluster.env', override=True)
 
 UPSTREAM_REPO = getenv("UPSTREAM_REPO", "https://github.com/MysteryDemon/BotClusters")
-UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "main")
+UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "v7.3")
 
 if UPSTREAM_REPO is not None:
     if opath.exists('.git'):

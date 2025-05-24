@@ -1,14 +1,4 @@
-<div align="center">
-    <a href="https://github.com/MysteryDemon/BotClusters">
-        <kbd>
-            <img width="2000" src="https://te.legra.ph/file/337898fcd33f27b9de71d.jpg" alt="Bot Clusters Logo">
-        </kbd>
-    </a>
-</div>
-
----
-
-## 📖 ***BotClusters***
+## 📖 ***BotClusters v7.3***
 
 Have you encountered the problem where you have to host less resource intense Telegram Bots for free and you can only host a bot for an account but you wanted to host all bots in one instance, well say no more...
 
@@ -27,6 +17,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 - 🔒 **Private Repo Support**: *Clone and run bots from private repositories using tokens*
 - 📦 **Custom installation**: *Custom installation of apt $ pip packages in `install.sh`*
 - 🎛️ **Web Integration**: *Flask-based web application support for services like Render and Koyeb*
+- 🐍 **Multi-Python Support**: *Supports multiple python version for each bot config*
   
 ---
 
@@ -39,13 +30,25 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## #️⃣ Sample `Var.CLUSTERS`
 
-| Config | Description | Required |
+| Config | Description | Required(compulsory) |
 |----------|-------------|----------|
 | `botname` | Unique name for your bot | ✅ |
 | `git_url` | GitHub repository URL | ✅ |
 | `branch` | Repository branch name | ✅ |
 | `run_command` | Bot execution command | ✅ |
 | `env` | Environment variables | ❌ |
+| `python_version` | Python Version | ❌ |
+
+---
+
+## ✅ Supported Python Versions
+
+`python3.8`
+`python3.9`
+`python3.10`
+`python3.11`
+`python3.12`
+`python3.13`
 
 ---
 
@@ -64,6 +67,11 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 * **For Private Repositories:**
 ```
 ["bot01", "https://mysterydemon:<your_github_private_token>@github.com/MysteryDemon/botcluster.git", "main", "main.py", {"PORT": "6060"}]
+```
+
+* **For Custom Python Version:**
+```
+["bot01", "https://mysterydemon:<your_github_private_token>@github.com/MysteryDemon/botcluster.git", "main", "main.py", {"PORT": "6060"}, "3.9"]
 ```
   
 ---
@@ -84,11 +92,12 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## 📝 ***Notes***
 * **Ensure all your bots are compatible with Python**
+* **Its not compulsory to set a python version only use when your bot needs a specific python version to run on**
 * **Docker support is in development**
 * **Keep your tokens and sensitive information secure**
 * **if your Bot has a dependency of packages thats not installed yet, use `install.sh` to install them**
 * **For FFMPEG Support use the [`master`](https://github.com/MysteryDemon/BotClusters/tree/master) branch**
-* **GUI login details:**
+* **[GUI](https://i.ibb.co/k2TBk6wR/IMG-20250524-213433-914-edit-261278564505495.png) login details:**
 
 `Username`
 ```

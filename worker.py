@@ -1,30 +1,37 @@
 import os
-import subprocess
+import re
 import json
+import glob
 import time
-import logging
-import signal
-from concurrent.futures import ThreadPoolExecutor
 import shutil
-import argparse
+import signal
 import random
+import asyncio
+import logging
+import argparse
+import subprocess
 from pathlib import Path
 from phrase import WORD_LIST
-from logging.handlers import RotatingFileHandler
-import re
 from dotenv import load_dotenv
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from logging.handlers import RotatingFileHandler
 
 LOG_FILE = 'bot_manager.log'
 LOG_SIZE = 10 * 1024 * 1024  # 10 MB
 LOG_BACKUP_COUNT = 5
 SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 
-logging.basicConfig(
-    handlers=[RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)],
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=LOG_SIZE, backupCount=LOG_BACKUP_COUNT)
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+file_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.DEBUG)
+logging.getLogger().handlers.clear()
+logging.getLogger().addHandler(file_handler)
+logging.getLogger().addHandler(console_handler)
+logging.getLogger().setLevel(logging.DEBUG)
 
 def generate_prefix():
     word1 = random.choice(WORD_LIST)
@@ -33,6 +40,20 @@ def generate_prefix():
     logging.info(f'Generated prefix: {prefix}')
     return prefix
 
+def get_pyenv_python(version):
+    major_minor = '.'.join(version.split('.')[:2])
+    shim = shutil.which(f"python{major_minor}")
+    if shim:
+        return shim
+    logging.warning(f"pyenv shim python{major_minor} not found in PATH. Falling back to 'python3'.")
+    return shutil.which("python3") or "python3"
+
+def run_with_pyenv(version, command_args, **kwargs):
+    env = os.environ.copy()
+    env["PYENV_VERSION"] = version
+    kwargs["env"] = env
+    return subprocess.run(command_args, **kwargs)
+    
 def validate_config(clusters):
     required_keys = ['bot_number', 'git_url', 'branch', 'run_command']
     seen_bot_suffixes = set()
@@ -61,6 +82,20 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
+    
+async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', err_pattern='*_err.log', interval_hours=24):
+    while True:
+        try:
+            for pattern in [log_pattern, err_pattern]:
+                for log_file in glob.glob(os.path.join(log_dir, pattern)):
+                    try:
+                        os.remove(log_file)
+                        logging.info(f"Deleted log file: {log_file}")
+                    except Exception as e:
+                        logging.error(f"Failed to delete log file {log_file}: {e}")
+        except Exception as e:
+            logging.error(f"Error during log cleanup: {e}")
+        await asyncio.sleep(interval_hours * 3600)
 
 def load_config(file_path):
     logging.info(f'Loading configuration from {file_path}')
@@ -84,6 +119,7 @@ def load_config(file_path):
 
             prefix = generate_prefix()
             cluster_name = f"{prefix} {cluster['name']}"
+            cron_value = details[6] if len(details) > 6 else cluster.get("cron", None)
 
             clusters.append({
                 "name": cluster_name,
@@ -91,7 +127,9 @@ def load_config(file_path):
                 "git_url": details[1],
                 "branch": details[2],
                 "run_command": details[3],
-                "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {}
+                "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
+                "python_version": details[5] if len(details) > 5 else None,
+                "cron": cron_value
             })
 
         except json.JSONDecodeError:
@@ -109,9 +147,8 @@ clusters = load_config("config.json")
 def write_supervisord_config(cluster, command):
     config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
-
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
-
+    cron_line = f"cron={cluster['cron']}" if cluster.get('cron') else ""
     config_content = f"""
     [program:{cluster['bot_number'].replace(' ', '_')}]
     command={command}
@@ -122,8 +159,8 @@ def write_supervisord_config(cluster, command):
     stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
     stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
     {f"environment={env_vars}" if env_vars else ""}
+    {cron_line}
     """
-
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
@@ -139,13 +176,23 @@ def _prepare_bot_dir(cluster):
     
     logging.info(f'Cloning {cluster["bot_number"]} from {cluster["git_url"]} (branch: {branch})')
     subprocess.run(['git', 'clone', '-b', branch, '--single-branch', cluster['git_url'], str(bot_dir)], check=True)
-    
+    version = cluster.get("python_version")
+    if version:
+        python_executable = get_pyenv_python(version)
+    else:
+        python_executable = shutil.which("python3") or "python3"
+        
     if requirements_file.exists():
-        logging.info(f'Creating virtual environment for {cluster["bot_number"]}')
-        subprocess.run(['python3', '-m', 'venv', str(venv_dir)], check=True)
-        pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
-        subprocess.run(pip_command, check=True)
-
+        logging.info(f'Creating virtual environment for {cluster["bot_number"]} using {python_executable}')
+        if version:
+            run_with_pyenv(version, [python_executable, '-m', 'venv', str(venv_dir)], check=True)
+            pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
+            run_with_pyenv(version, pip_command, check=True)
+        else:
+             subprocess.run([python_executable, '-m', 'venv', str(venv_dir)], check=True)
+             pip_command = [str(venv_dir / 'bin' / 'pip'), 'install', '--no-cache-dir', '-r', str(requirements_file)]
+             subprocess.run(pip_command, check=True)
+                
 async def start_bot(cluster):
     logging.info(f'Starting bot: {cluster["bot_number"]}')
     bot_dir = Path('/app') / cluster['bot_number'].replace(" ", "_")
@@ -153,14 +200,18 @@ async def start_bot(cluster):
     bot_file = bot_dir / cluster['run_command']
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _prepare_bot_dir, cluster)
-    
+
+    python_executable = venv_dir / 'bin' / 'python3'
+    if cluster.get('python_version'):
+        python_executable = venv_dir / 'bin' / f'python{cluster["python_version"]}'
+
     if bot_file.suffix == ".sh":
         command = f"bash {bot_file}"
     elif bot_file.suffix == ".py":
-        command = f"{venv_dir / 'bin' / 'python3'} {bot_file}"
+        command = f"{python_executable} {bot_file}"
     else:
-        command = f"{venv_dir / 'bin' / 'python3'} -m {bot_file.stem}"
-    
+        command = f"{python_executable} -m {bot_file.stem}"
+
     write_supervisord_config(cluster, command)
 
 async def async_supervisorctl(command):
@@ -195,6 +246,15 @@ async def get_process_status(bot_conf_name):
             if len(parts) >= 2:
                 return parts[1]
     return None
+
+async def cleanup_existing_bots():
+    conf_dir = Path(SUPERVISORD_CONF_DIR)
+    for conf_file in conf_dir.glob("*.conf"):
+        bot_conf_name = conf_file.stem
+        await async_supervisorctl(f"supervisorctl stop {bot_conf_name}")
+        conf_file.unlink()
+        logging.info(f"Cleaned up supervisord config and stopped bot: {bot_conf_name}")
+    await reload_supervisord()
 
 async def wait_for_process_stop(bot_conf_name, timeout=30, interval=2):
     start_time = time.time()
@@ -241,6 +301,8 @@ async def main_async():
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
+    asyncio.create_task(cleanup_logs(interval_hours=168))
+    await cleanup_existing_bots()
 
     if args.restart:
         logging.info('Restarting bot manager...')

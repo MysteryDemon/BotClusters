@@ -127,6 +127,7 @@ function updateBotCards(processes) {
         const botCard = document.createElement('div');
         botCard.className = 'bot-card';
         const isRunning = process.status === 'RUNNING';
+        const isPaused = process.paused; 
 
         // Format the bot name using the actual bot number from the process name
         const displayName = formatBotName(process.name);
@@ -138,9 +139,9 @@ function updateBotCards(processes) {
         botCard.innerHTML = `
             <div class="bot-header">
                 <h2>${displayName}</h2>
-                <span class="bot-status ${isRunning ? 'status-online' : 'status-offline'}">
-                    ${isRunning ? 'Online' : 'Offline'}
-                </span>
+                <span class="bot-status ${isRunning && !isPaused ? 'status-online' : isPaused ? 'status-paused' : 'status-offline'}">
+                    ${isRunning && !isPaused ? 'Online' : isPaused ? 'Paused' : 'Offline'}
+                </span> 
             </div>
             <div class="bot-info">
                 <p><strong>Process Name:</strong> ${process.name}</p>
@@ -158,6 +159,11 @@ function updateBotCards(processes) {
                         class="control-btn restart-btn"
                         ${!isRunning ? 'disabled' : ''}>
                     Restart
+                </button>
+                <button onclick="${isPaused ? `resumeBot('${process.name}')` : `pauseBot('${process.name}')`}" 
+                        class="control-btn pause-btn"
+                        ${!isRunning ? 'disabled' : ''}>
+                    ${isPaused ? 'Resume' : 'Pause'}
                 </button>
                 <button onclick="viewLogs('${process.name}')" class="control-btn log-btn">
                     View Logs
@@ -213,6 +219,24 @@ function restartBot(processName) {
     });
 }
 
+function pauseBot(processName) {
+    fetch(`/supervisor/pause/${processName}`, { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') setTimeout(requestStatus, 1000);
+        else alert(`Error: ${data.message}`);
+    });
+}
+
+function resumeBot(processName) {
+    fetch(`/supervisor/resume/${processName}`, { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') setTimeout(requestStatus, 1000);
+        else alert(`Error: ${data.message}`);
+    });
+}
+
 function viewLogs(processName) {
     fetch(`/supervisor/log/${processName}`)
     .then(response => {
@@ -253,3 +277,4 @@ window.onbeforeunload = function() {
     if (socket) socket.disconnect();
     if (updateInterval) clearInterval(updateInterval);
 };
+

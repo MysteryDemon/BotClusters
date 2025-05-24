@@ -2,6 +2,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import os
+import signal
 import subprocess
 import re
 from datetime import datetime
@@ -9,6 +10,7 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
+import threading
 import configparser
 
 from app import app
@@ -42,6 +44,7 @@ SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 STATUS_CHECK_INTERVAL = 2
 MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
+CRON_JOBS = {}
 
 def parse_supervisor_status(status_line):
     try:
@@ -51,16 +54,79 @@ def parse_supervisor_status(status_line):
             status = parts[1]
             pid_match = re.search(r'pid (\d+)', status_line)
             uptime_match = re.search(r'uptime ([\d:]+)', status_line)
+            pid = pid_match.group(1) if pid_match else None
+            paused = False
+            
+            if pid and is_process_paused(pid):
+                paused = True
             
             return {
                 "name": name,
                 "status": status,
                 "pid": pid_match.group(1) if pid_match else None,
-                "uptime": uptime_match.group(1) if uptime_match else "0:00:00"
+                "uptime": uptime_match.group(1) if uptime_match else "0:00:00",
+                "paused": paused
             }
     except Exception as e:
         logger.error(f"Error parsing supervisor status line: {e}")
     return None
+
+def pause_process(process_name):
+    result = run_supervisor_command("status", process_name)
+    if result["status"] == "success":
+        # Get PID from status message
+        proc = parse_supervisor_status(result["message"])
+        if proc and proc["pid"]:
+            try:
+                os.kill(int(proc["pid"]), signal.SIGSTOP)
+                return {"status": "success", "message": f"Paused process {process_name}"}
+            except Exception as e:
+                logger.error(f"Error pausing process {process_name}: {e}")
+                return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Process not running or PID not found"}
+
+@app.route('/supervisor/pause/<process_name>', methods=['POST'])
+def pause_supervisor_process(process_name):
+    logger.info(f"Received pause request for process: {process_name}")
+    result = pause_process(process_name)
+    if result["status"] == "success":
+        broadcast_status_update()
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+@app.route('/supervisor/resume/<process_name>', methods=['POST'])
+def resume_supervisor_process(process_name):
+    logger.info(f"Received resume request for process: {process_name}")
+    result = resume_process(process_name)
+    if result["status"] == "success":
+        broadcast_status_update()
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+def is_process_paused(pid):
+    try:
+        with open(f"/proc/{pid}/status") as f:
+            for line in f:
+                if line.startswith("State:") and "\tT" in line:
+                    return True
+    except Exception:
+        pass
+    return False
+
+def resume_process(process_name):
+    result = run_supervisor_command("status", process_name)
+    if result["status"] == "success":
+        proc = parse_supervisor_status(result["message"])
+        if proc and proc["pid"]:
+            try:
+                os.kill(int(proc["pid"]), signal.SIGCONT)
+                return {"status": "success", "message": f"Resumed process {process_name}"}
+            except Exception as e:
+                logger.error(f"Error resuming process {process_name}: {e}")
+                return {"status": "error", "message": str(e)}
+    return {"status": "error", "message": "Process not running or PID not found"}
 
 def run_supervisor_command(command, process_name=None, timeout=30):
     try:
@@ -107,6 +173,45 @@ def verify_process_status(process_name, expected_status=None):
     except Exception as e:
         logger.error(f"Error verifying process status: {str(e)}")
         return None
+
+def parse_cron_interval(cron_value):
+    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?", cron_value, re.IGNORECASE)
+    if not match:
+        return None
+    num, unit = int(match.group(1)), match.group(2).lower()
+    unit_seconds = {
+        "sec": 1,
+        "min": 60,
+        "hour": 3600,
+        "day": 86400,
+        "month": 2592000, 
+        "year": 31536000
+    }
+    return num * unit_seconds.get(unit, 0)
+
+def schedule_cronjobs():
+    config_dir = Path(SUPERVISORD_CONF_DIR)
+    for conf_file in config_dir.glob("*.conf"):
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+        for section in config.sections():
+            if section.startswith("program:"):
+                process_name = section[8:]
+                cron_value = config[section].get("cron")
+                if cron_value:
+                    interval = parse_cron_interval(cron_value)
+                    if interval:
+                        if process_name not in CRON_JOBS:
+                            t = threading.Thread(target=cron_restart_loop, args=(process_name, interval), daemon=True)
+                            t.start()
+                            CRON_JOBS[process_name] = t
+
+def cron_restart_loop(process_name, interval):
+    while True:
+        time.sleep(interval)
+        logger.info(f"[CRON] Restarting {process_name} due to cron interval.")
+        run_supervisor_command("restart", process_name)
+        broadcast_status_update()
 
 def broadcast_status_update():
     try:

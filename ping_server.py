@@ -4,10 +4,8 @@ import time
 import logging
 import requests
 
-
 DEFAULT_PING_INTERVAL = 240
 MAX_FAILURES = 2
-
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
@@ -16,18 +14,10 @@ handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
 def get_app_url():
-    """
-    Retrieves the app URL from the environment variable 'APP_URL' or
-    the first command-line argument. If neither is provided, returns None.
-    """
     app_url = os.getenv("APP_URL") or (sys.argv[1] if len(sys.argv) > 1 else None)
     return app_url
 
 def get_ping_interval():
-    """
-    Returns the ping interval in seconds from the 'PING_INTERVAL' environment variable.
-    Falls back to DEFAULT_PING_INTERVAL if the environment variable is not set or invalid.
-    """
     try:
         return int(os.getenv("PING_INTERVAL", DEFAULT_PING_INTERVAL))
     except ValueError:
@@ -35,10 +25,6 @@ def get_ping_interval():
         return DEFAULT_PING_INTERVAL
 
 def get_delay():
-    """
-    Returns the delay in seconds from the 'DELAY' environment variable.
-    Defaults to 300 seconds if not set or if the value is invalid.
-    """
     try:
         return int(os.getenv("DELAY", 300))
     except ValueError:
@@ -46,18 +32,9 @@ def get_delay():
         return 300
 
 def should_delay_ping():
-    """
-    Determines whether to delay before starting to ping based on the 'DELAY_PING'
-    environment variable. Accepts values like 'True', '1', or 'yes' (case insensitive)
-    as True.
-    """
     return os.getenv("DELAY_PING", "False").lower() in ("true", "1", "yes")
 
 def ping_url(session, url):
-    """
-    Attempts to ping the specified URL using the provided session.
-    Returns True if the HTTP response status code is 200; otherwise, returns False.
-    """
     try:
         response = session.get(url, timeout=10)
         if response.status_code == 200:
