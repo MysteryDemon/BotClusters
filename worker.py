@@ -388,7 +388,6 @@ async def main_async():
             cron = cluster.get("cron")
             if cron:
                 bot_key = cluster['bot_number']
-                last_restart[bot_key] = time.time() - 9999
                 
 if __name__ == "__main__":
     asyncio.run(main_async())
