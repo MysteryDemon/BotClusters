@@ -6,6 +6,8 @@ import logging
 import signal
 from concurrent.futures import ThreadPoolExecutor
 import shutil
+from dateutil.relativedelta import relativedelta
+import croniter
 import argparse
 import random
 from pathlib import Path
@@ -90,6 +92,48 @@ async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', e
             logging.error(f"Error during log cleanup: {e}")
         await asyncio.sleep(interval_hours * 3600)
 
+def parse_cron_interval(cron_str):
+    units = {
+        "sec": "seconds",
+        "min": "minutes",
+        "hour": "hours",
+        "day": "days",
+        "month": "months",
+        "year": "years"
+    }
+    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?$", cron_str)
+    if match:
+        value, unit = match.groups()
+        value = int(value)
+        unit = units[unit]
+        return {unit: value}
+    return None
+
+async def cronjob_restart_loop(clusters):
+    last_restart = {}
+    while True:
+        for cluster in clusters:
+            cron = cluster.get("cron")
+            if not cron:
+                continue
+            interval = parse_cron_interval(cron)
+            if not interval:
+                logging.warning(f"Invalid cron value: {cron} for {cluster['bot_number']}")
+                continue
+            now = time.time()
+            bot_key = cluster['bot_number']
+            last = last_restart.get(bot_key, 0)
+            delta = relativedelta(**interval)
+            seconds = (delta.years * 365*24*3600 + delta.months * 30*24*3600 +
+                       delta.days * 24*3600 + delta.hours * 3600 +
+                       delta.minutes * 60 + delta.seconds)
+            if now - last >= seconds:
+                logging.info(f"Restarting bot {bot_key} on schedule ({cron})")
+                await stop_bot(bot_key)
+                await start_bot(cluster)
+                last_restart[bot_key] = now
+        await asyncio.sleep(5)
+
 def load_config(file_path):
     logging.info(f'Loading configuration from {file_path}')
     
@@ -112,7 +156,10 @@ def load_config(file_path):
 
             prefix = generate_prefix()
             cluster_name = f"{prefix} {cluster['name']}"
-
+            cron_value = None
+            if len(details) > 6 and isinstance(details[6], str) and details[6].startswith("cron="):
+                cron_value = details[6][5:]
+                
             clusters.append({
                 "name": cluster_name,
                 "bot_number": f"{prefix} {details[0]}",
@@ -120,7 +167,9 @@ def load_config(file_path):
                 "branch": details[2],
                 "run_command": details[3],
                 "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
-                "python_version": details[5] if len(details) > 5 else None })
+                "python_version": details[5] if len(details) > 5 else None,
+                "cron": cron_value,
+            })
 
         except json.JSONDecodeError:
             logging.error(f"Error decoding JSON for {cluster['name']}, skipping.")
@@ -128,7 +177,6 @@ def load_config(file_path):
 
     if not validate_config(clusters):
         raise ValueError("Invalid configuration file.")
-
     return clusters
 
 load_dotenv('cluster.env', override=True)
@@ -293,6 +341,7 @@ async def main_async():
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
+    asyncio.create_task(cronjob_restart_loop(clusters))
     await cleanup_existing_bots()
 
     if args.restart:
