@@ -9,6 +9,7 @@ from functools import wraps
 from pathlib import Path
 import logging
 import time
+import threading
 import configparser
 
 from app import app
@@ -42,6 +43,7 @@ SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 STATUS_CHECK_INTERVAL = 2
 MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
+CRON_JOBS = {}
 
 def parse_supervisor_status(status_line):
     try:
@@ -107,6 +109,45 @@ def verify_process_status(process_name, expected_status=None):
     except Exception as e:
         logger.error(f"Error verifying process status: {str(e)}")
         return None
+
+def parse_cron_interval(cron_value):
+    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?", cron_value, re.IGNORECASE)
+    if not match:
+        return None
+    num, unit = int(match.group(1)), match.group(2).lower()
+    unit_seconds = {
+        "sec": 1,
+        "min": 60,
+        "hour": 3600,
+        "day": 86400,
+        "month": 2592000, 
+        "year": 31536000
+    }
+    return num * unit_seconds.get(unit, 0)
+
+def schedule_cronjobs():
+    config_dir = Path(SUPERVISORD_CONF_DIR)
+    for conf_file in config_dir.glob("*.conf"):
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+        for section in config.sections():
+            if section.startswith("program:"):
+                process_name = section[8:]
+                cron_value = config[section].get("cron")
+                if cron_value:
+                    interval = parse_cron_interval(cron_value)
+                    if interval:
+                        if process_name not in CRON_JOBS:
+                            t = threading.Thread(target=cron_restart_loop, args=(process_name, interval), daemon=True)
+                            t.start()
+                            CRON_JOBS[process_name] = t
+
+def cron_restart_loop(process_name, interval):
+    while True:
+        time.sleep(interval)
+        logger.info(f"[CRON] Restarting {process_name} due to cron interval.")
+        run_supervisor_command("restart", process_name)
+        broadcast_status_update()
 
 def broadcast_status_update():
     try:
