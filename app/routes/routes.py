@@ -54,12 +54,18 @@ def parse_supervisor_status(status_line):
             status = parts[1]
             pid_match = re.search(r'pid (\d+)', status_line)
             uptime_match = re.search(r'uptime ([\d:]+)', status_line)
+            pid = pid_match.group(1) if pid_match else None
+            paused = False
+            
+            if pid and is_process_paused(pid):
+                paused = True
             
             return {
                 "name": name,
                 "status": status,
                 "pid": pid_match.group(1) if pid_match else None,
                 "uptime": uptime_match.group(1) if uptime_match else "0:00:00"
+                "paused": paused
             }
     except Exception as e:
         logger.error(f"Error parsing supervisor status line: {e}")
@@ -98,6 +104,16 @@ def resume_supervisor_process(process_name):
         return jsonify(result), 200
     else:
         return jsonify(result), 500
+
+def is_process_paused(pid):
+    try:
+        with open(f"/proc/{pid}/status") as f:
+            for line in f:
+                if line.startswith("State:") and "\tT" in line:
+                    return True
+    except Exception:
+        pass
+    return False
 
 def resume_process(process_name):
     result = run_supervisor_command("status", process_name)
