@@ -3,7 +3,7 @@ eventlet.monkey_patch()
 import os
 import logging
 from app import app
-from app.routes import socketio
+from app.routes.routes import socketio, schedule_cronjobs
 
 SUPERVISOR_LOG_DIR = "/var/log/supervisor"
 
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     try:
         os.makedirs(SUPERVISOR_LOG_DIR, exist_ok=True)
+        schedule_cronjobs()
         port = int(os.environ.get("PORT", 5000))
         socketio.run(
             app,
