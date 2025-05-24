@@ -157,15 +157,6 @@ def load_config(file_path):
 
             prefix = generate_prefix()
             cluster_name = f"{prefix} {cluster['name']}"
-            python_version = None
-            cron_value = None
-
-            if len(details) > 5:
-                if isinstance(details[5], str) and details[5].startswith("cron="):
-                    cron_value = details[5][5:]
-                else:
-                     python_version = details[5]
-                
             clusters.append({
                 "name": cluster_name,
                 "bot_number": f"{prefix} {details[0]}",
@@ -173,8 +164,8 @@ def load_config(file_path):
                 "branch": details[2],
                 "run_command": details[3],
                 "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
-                "python_version": python_version,
-                "cron": cron_value,
+                "python_version": details[5] if len(details) > 5 and not (isinstance(details[5], str) and details[5].startswith("cron=")) else None,
+                "cron": details[6][5:] if len(details) > 6 and isinstance(details[6], str) and details[6].startswith("cron=") else None,
             })
 
         except json.JSONDecodeError:
