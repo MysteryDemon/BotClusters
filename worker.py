@@ -4,6 +4,7 @@ import subprocess
 import json
 import glob
 import time
+import aiofiles
 import logging
 import signal
 from concurrent.futures import ThreadPoolExecutor
@@ -94,6 +95,28 @@ async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', e
             logging.error(f"Error during log cleanup: {e}")
         await asyncio.sleep(interval_hours * 3600)
 
+async def restart_bot_cron(cluster):
+    bot_conf_name = cluster['bot_number'].replace(" ", "_")
+    config_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
+
+    if not config_path.exists():
+        logging.error(f"Config file not found for {bot_conf_name}")
+        return
+        
+    async with aiofiles.open(config_path, 'r') as f:
+        config_content = await f.read()
+
+    await async_supervisorctl(f"supervisorctl stop {bot_conf_name}")
+    config_path.unlink()
+    await async_supervisorctl("supervisorctl reread")
+    await async_supervisorctl("supervisorctl update")
+    await asyncio.sleep(2)
+    await start_bot(cluster)
+    await async_supervisorctl("supervisorctl reread")
+    await async_supervisorctl("supervisorctl update")
+    await async_supervisorctl(f"supervisorctl start {bot_conf_name}")
+    logging.info(f"Bot {bot_conf_name} restarted by cron.")
+
 def parse_cron_interval(cron_str):
     logging.info(f"Parsing cron interval: {cron_str}")
     units = {
@@ -134,11 +157,11 @@ async def cronjob_restart_loop(clusters, last_restart):
             seconds = (delta.years * 365*24*3600 + delta.months * 30*24*3600 +
                        delta.days * 24*3600 + delta.hours * 3600 +
                        delta.minutes * 60 + delta.seconds)
+            
             logging.info(f"Bot {bot_key}: Now: {now}, Last: {last}, Interval (s): {seconds}")
             if now - last >= seconds:
                 logging.info(f"Restarting bot {bot_key} on schedule ({cron})")
-                await stop_bot(bot_key)
-                await start_bot(cluster)
+                await restart_bot_cron(cluster)
                 last_restart[bot_key] = time.time()
             else:
                 logging.info(f"No restart needed for {bot_key}. Time since last: {now - last} seconds")
