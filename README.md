@@ -97,7 +97,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 * **Keep your tokens and sensitive information secure**
 * **if your Bot has a dependency of packages thats not installed yet, use `install.sh` to install them**
 * **For FFMPEG Support use the [`master`](https://github.com/MysteryDemon/BotClusters/tree/master) branch**
-* **GUI login details:**
+* **[GUI](https://i.ibb.co/k2TBk6wR/IMG-20250524-213433-914-edit-261278564505495.png) login details:**
 
 `Username`
 ```
