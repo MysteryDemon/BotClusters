@@ -75,6 +75,20 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
+    
+async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', err_pattern='*_err.log', interval_hours=24):
+    while True:
+        try:
+            for pattern in [log_pattern, err_pattern]:
+                for log_file in glob.glob(os.path.join(log_dir, pattern)):
+                    try:
+                        os.remove(log_file)
+                        logging.info(f"Deleted log file: {log_file}")
+                    except Exception as e:
+                        logging.error(f"Failed to delete log file {log_file}: {e}")
+        except Exception as e:
+            logging.error(f"Error during log cleanup: {e}")
+        await asyncio.sleep(interval_hours * 3600)
 
 def load_config(file_path):
     logging.info(f'Loading configuration from {file_path}')
