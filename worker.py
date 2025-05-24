@@ -141,28 +141,21 @@ def write_supervisord_config(cluster, command):
     config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
 
-    lines = [
-        f"[program:{cluster['bot_number'].replace(' ', '_')}]",
-        f"command={command}",
-        f"directory=/app/{cluster['bot_number'].replace(' ', '_')}",
-        "autostart=true",
-        "autorestart=true",
-        "startretries=12",
-        f"stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log",
-        f"stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log"
-    ]
-    if cluster.get("env") and isinstance(cluster["env"], dict) and len(cluster["env"]) > 0:
-        env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()])
-        lines.append(f"environment={env_vars}")
+    env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
 
-    if cluster.get("cron"):
-        lines.append(f"cron={cluster['cron']}")
+    config_content = f"""
+    [program:{cluster['bot_number'].replace(' ', '_')}]
+    command={command}
+    directory=/app/{cluster['bot_number'].replace(' ', '_')}
+    autostart=true
+    autorestart=true
+    startretries=12
+    stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
+    stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
+    {f"environment={env_vars}" if env_vars else ""}
+    """
 
-    if cluster.get("python_version"):
-        lines.append(f"python_version={cluster['python_version']}")
-
-    config_content = "\n".join(lines)
-    config_path.write_text(config_content)
+    config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
 def _prepare_bot_dir(cluster):
