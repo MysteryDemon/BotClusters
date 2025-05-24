@@ -1,175 +1,243 @@
 /* Reset and Base Styles */
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 20px;
-    background-color: #f5f5f5;
-    color: #333;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #23272f;
+    min-height: 100vh;
+    transition: background 0.4s;
 }
 
 h2 {
-    color: #007BFF;
+    color: #4f8cff;
     text-align: center;
+    letter-spacing: 0.03em;
+    font-weight: 700;
 }
 
 hr {
     border: 0;
-    height: 1px;
-    background: #ddd;
-    margin: 20px 0;
+    height: 2px;
+    background: linear-gradient(90deg, #4f8cff 0%, #92fe9d 100%);
+    margin: 24px 0;
+    border-radius: 2px;
 }
 
 /* Layout Components */
 .dashboard {
     max-width: 1200px;
     margin: 0 auto;
+    padding: 32px 0;
 }
 
 .header {
-    background-color: #2c3e50;
+    background: linear-gradient(90deg, #4f8cff 40%, #92fe9d 100%);
     color: white;
-    padding: 40px;
-    border-radius: 8px;
-    margin-bottom: 40px;
+    padding: 48px 56px;
+    border-radius: 16px;
+    margin-bottom: 48px;
+    box-shadow: 0 8px 24px 0 rgba(79, 140, 255, 0.13);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+.header::after {
+    content: '';
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle at 60% 40%, #ffffff22 0%, #4f8cff00 100%);
+    z-index: 0;
+    pointer-events: none;
 }
 
-/* Light Mode */
+.header h1 {
+    font-size: 2.6em;
+    margin-bottom: 0.3em;
+    letter-spacing: 0.04em;
+    font-weight: bold;
+    z-index: 1;
+    position: relative;
+}
+
+.header p {
+    font-size: 1.3em;
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: 0.08em;
+    z-index: 1;
+    position: relative;
+}
+
 body.light-mode {
-    background-color: #ffffff;
-    color: #000000;
+    background: linear-gradient(135deg, #ffffff 0%, #e3eeff 100%);
+    color: #23272f;
 }
 
 .header.light-mode {
-    background-color: #e0e0e0;
-    color: #000000;
+    background: linear-gradient(90deg, #e0e0e0 40%, #b5c6e0 100%);
+    color: #23272f;
 }
 
 /* Bot Grid Layout */
 .bot-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 32px;
 }
 
-/* Add these styles to your existing CSS */
+/* Bot Status Styles */
 .bot-status {
     display: inline-flex;
     align-items: center;
-    padding: 8px 16px;
-    border-radius: 50px; /* Makes the background circular/pill-shaped */
-    font-size: 0.9em;
-    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 50px;
+    font-size: 1em;
+    font-weight: 700;
     position: relative;
+    box-shadow: 0 1px 8px #4f8cff11;
+    letter-spacing: 0.05em;
+    background: #f3f8ff;
+    border: 1.5px solid #e0e7ff;
 }
 
 .bot-status::before {
     content: '';
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    margin-right: 8px;
-    animation: pulse 2s infinite;
+    margin-right: 10px;
+    animation: pulse 1.6s infinite;
+    box-shadow: 0 0 8px 2px #95f7b6aa;
 }
 
 .status-online {
-    background-color: rgba(46, 204, 113, 0.15);
-    color: #27ae60;
+    background: linear-gradient(90deg, #eafff4 0%, #c3f3e8 100%);
+    color: #22b573;
+    border-color: #2ecc71;
 }
 
 .status-online::before {
     background-color: #2ecc71;
+    box-shadow: 0 0 0 3px #2ecc7122;
 }
 
 .status-offline {
-    background-color: rgba(231, 76, 60, 0.15);
-    color: #c0392b;
+    background: linear-gradient(90deg, #fff2f2 0%, #ffe3e3 100%);
+    color: #e74c3c;
+    border-color: #e74c3c;
 }
 
 .status-offline::before {
     background-color: #e74c3c;
+    box-shadow: 0 0 0 3px #e74c3c22;
+}
+
+.status-paused {
+    background: linear-gradient(90deg, #fffbe0 0%, #fff1b8 100%);
+    color: #f1c40f;
+    border-color: #f1c40f;
+}
+.status-paused::before {
+    background-color: #f1c40f;
+    box-shadow: 0 0 0 3px #f1c40f44;
 }
 
 @keyframes pulse {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.1);
-        opacity: 0.8;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
+    0% { transform: scale(1); opacity: 1;}
+    60% { transform: scale(1.3); opacity: 0.4;}
+    100% { transform: scale(1); opacity: 1;}
 }
 
-/* Update the bot header styles */
+/* Bot Card Styles */
+.bot-card {
+    background: linear-gradient(120deg, #f7fafc 80%, #e3f0ff 100%);
+    border-radius: 14px;
+    padding: 28px 26px 22px 26px;
+    box-shadow: 0 4px 28px 0 rgba(79, 140, 255, 0.10), 0 1.5px 5px #ffffff0a;
+    border: 1.5px solid #e5e9f2;
+    transition: box-shadow 0.18s, transform 0.12s;
+    position: relative;
+}
+
+.bot-card:hover {
+    box-shadow: 0 8px 42px 0 #4f8cff33, 0 3px 12px #ffffff0a;
+    transform: translateY(-2px) scale(1.015);
+}
+
 .bot-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding: 10px 0;
+    margin-bottom: 18px;
+    padding: 0;
+    border-bottom: 1.5px solid #e5e9f2;
+    padding-bottom: 10px;
 }
 
 .bot-header h2 {
     margin: 0;
     font-size: 1.5em;
-    color: #2c3e50;
+    color: #4f8cff;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-shadow: 0 2px 8px #4f8cff1a;
+}
+
+.bot-info {
+    margin: 12px 0 8px 0;
 }
 
 .bot-info p:first-child {
-    font-size: 0.9em;
+    font-size: 1em;
     color: #7f8c8d;
     font-family: monospace;
 }
 
-/* Bot Card Styles */
-.bot-card {
-    background-color: white;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.bot-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.bot-info {
-    margin: 15px 0;
-}
-
 .bot-info p {
-    margin: 5px 0;
+    margin: 7px 0;
 }
 
 /* Table Styles */
 table {
     width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 24px 0;
+    background: #f6faff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 9px #d6ebff22;
 }
 
 table thead {
-    background-color: #007BFF;
+    background: linear-gradient(90deg, #4f8cff 70%, #92fe9d 100%);
     color: white;
+    font-weight: 700;
 }
 
-table th, 
+table th,
 table td {
-    padding: 12px;
-    border: 1px solid #ddd;
+    padding: 14px 12px;
+    border-bottom: 1px solid #eaeaea;
     text-align: left;
 }
 
+table th {
+    border-bottom: 2.5px solid #4f8cff33;
+    letter-spacing: 0.04em;
+}
+
 table tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background: #f2f8ff;
+}
+
+table tr:last-child td {
+    border-bottom: none;
 }
 
 /* Button Container */
@@ -177,93 +245,112 @@ table tbody tr:nth-child(even) {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    margin: 20px 0;
+    gap: 10px;
+    margin: 26px 0;
 }
 
 /* Button Base Styles */
 button,
 .control-btn {
-    padding: 12px 20px;
+    padding: 13px 24px;
     border: none;
-    border-radius: 5px;
-    font-size: 16px;
+    border-radius: 6px;
+    font-size: 17px;
+    font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin: 5px;
+    transition: background 0.22s, box-shadow 0.18s, transform 0.13s;
+    margin: 6px 0;
+    outline: none;
+    box-shadow: 0 2px 10px #4f8cff11;
+    position: relative;
+    letter-spacing: 0.03em;
+    user-select: none;
+}
+
+button:active, .control-btn:active {
+    transform: scale(0.96);
 }
 
 button {
-    background-color: #007BFF;
+    background: linear-gradient(90deg, #4f8cff 60%, #92fe9d 100%);
     color: white;
+    box-shadow: 0 2px 8px #4f8cff15;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background: linear-gradient(90deg, #4f8cff 30%, #75daff 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 20px #4f8cff25;
 }
 
-button:active {
-    background-color: #003f7f;
-}
-
-/* Specialized Button Styles */
 .control-btn {
-    padding: 8px 15px;
-    border-radius: 4px;
-    font-weight: bold;
+    padding: 8px 18px;
+    border-radius: 5px;
 }
 
 .start-btn {
-    background-color: #2ecc71;
+    background: linear-gradient(90deg, #22b573 60%, #92fe9d 100%);
     color: white;
+}
+
+.start-btn:hover {
+    background: linear-gradient(90deg, #22b573 30%, #6ffcb4 100%);
 }
 
 .pause-btn {
-    background-color: #f1c40f;
-    color: #2c3e50;
+    background: linear-gradient(90deg, #ffe259 60%, #ffa751 100%);
+    color: #23272f;
 }
-.status-paused {
-    background-color: rgba(241, 196, 15, 0.15);
-    color: #f1c40f;
-}
-.status-paused::before {
-    background-color: #f1c40f;
+
+.pause-btn:hover {
+    background: linear-gradient(90deg, #f1c40f 30%, #ffe259 100%);
 }
 
 .stop-btn {
-    background-color: #e74c3c;
+    background: linear-gradient(90deg, #e74c3c 60%, #ffb199 100%);
     color: white;
+}
+
+.stop-btn:hover {
+    background: linear-gradient(90deg, #e74c3c 30%, #ffb199 100%);
 }
 
 .restart-btn {
-    background-color: #f1c40f;
-    color: #2c3e50;
+    background: linear-gradient(90deg, #f1c40f 60%, #ffe259 100%);
+    color: #23272f;
+}
+
+.restart-btn:hover {
+    background: linear-gradient(90deg, #f1c40f 30%, #ffe259 100%);
 }
 
 .log-btn {
-    background-color: #3498db;
+    background: linear-gradient(90deg, #3498db 60%, #8fd3f4 100%);
     color: white;
 }
 
-.control-btn:hover {
-    opacity: 0.9;
+.log-btn:hover {
+    background: linear-gradient(90deg, #3498db 30%, #8fd3f4 100%);
 }
 
 .greenYellowButton {
-    background-color: #9ACD32;
-    color: white;
+    background: linear-gradient(90deg, #9ACD32 60%, #f7ff00 100%);
+    color: #23272f;
 }
 
 .greenYellowButton:hover {
-    background-color: #8BBF31;
+    background: linear-gradient(90deg, #8BBF31 20%, #f7ff00 100%);
 }
 
 .greenYellowButton:active {
-    background-color: #7AAF30;
+    background: linear-gradient(90deg, #7AAF30 20%, #e6f700 100%);
 }
 
 /* Loading Animation */
-button.loading {
+button.loading, .greenYellowButton.loading {
     position: relative;
+    pointer-events: none;
+    opacity: 0.7;
 }
 
 button.loading::after,
@@ -272,16 +359,17 @@ button.loading::after,
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border: 3px solid #fff;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 0.9s linear infinite;
     transform: translate(-50%, -50%);
+    z-index: 10;
 }
 
 button.loading::after {
-    border-top: 3px solid #007BFF;
+    border-top: 3px solid #4f8cff;
 }
 
 .greenYellowButton.loading::after {
@@ -289,91 +377,163 @@ button.loading::after {
 }
 
 @keyframes spin {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    100% { transform: translate(-50%, -50%) rotate(360deg); }
+    0% { transform: translate(-50%, -50%) rotate(0deg);}
+    100% { transform: translate(-50%, -50%) rotate(360deg);}
 }
 
 /* Modal Styles */
 .modal {
     display: none;
     position: fixed;
-    z-index: 1;
+    z-index: 100;
     left: 0;
     top: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+    background: rgba(60, 72, 122, 0.36);
+    backdrop-filter: blur(1.5px);
+    transition: background 0.22s;
 }
 
 .modal-content {
-    background-color: #fefefe;
-    margin: 15% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
+    background: linear-gradient(120deg, #f7fafc 80%, #e3f0ff 100%);
+    margin: 7% auto;
+    padding: 30px 26px 15px 26px;
+    border: 2px solid #4f8cff22;
+    width: 90%;
+    max-width: 700px;
     max-height: 70vh;
     overflow-y: auto;
+    border-radius: 12px;
+    box-shadow: 0 8px 48px #4f8cff2a;
+    position: relative;
 }
 
 .close {
     color: #aaa;
     float: right;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: bold;
     cursor: pointer;
+    margin-top: -12px;
+    margin-right: -8px;
+    transition: color 0.2s;
 }
 
 .close:hover,
 .close:focus {
-    color: black;
+    color: #4f8cff;
     text-decoration: none;
     cursor: pointer;
 }
 
 #log-content {
     white-space: pre-wrap;
-    font-family: monospace;
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+    background: #f4f9ff;
+    padding: 18px;
+    border-radius: 6px;
+    font-size: 1.04em;
+    color: #234;
+    border-left: 4px solid #4f8cff44;
+    margin-top: 12px;
 }
 
 /* Footer Styles */
 footer {
-    background-color: #2c3e50;
+    background: linear-gradient(90deg, #4f8cff 40%, #92fe9d 100%);
     color: #fff;
     text-align: center;
-    padding: 60px; /* Match header padding */
-    border-radius: 8px; /* Match header border-radius */
-    margin: 0 auto; /* Center horizontally */
-    margin-top: 40px; /* Shift down by adding top margin */
-    max-width: 1080px; /* Match header max-width */
+    padding: 44px 12px 40px 12px;
+    border-radius: 14px;
+    margin: 0 auto;
+    margin-top: 56px;
+    max-width: 1080px;
+    box-shadow: 0 8px 28px 0 rgba(79, 140, 255, 0.13);
+    font-size: 1.07em;
+    letter-spacing: 0.02em;
+    position: relative;
+    z-index: 1;
 }
 
 footer a {
-    color: #3498db;
-    text-decoration: none;
+    color: #fff;
+    text-decoration: underline;
+    font-weight: 500;
+    transition: color 0.18s;
+}
+
+footer a:hover {
+    color: #23272f;
+    background: #fff5;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+footer .container p {
+    margin: 6px 0;
 }
 
 /* Responsive Design */
+@media (max-width: 900px) {
+    .dashboard {
+        padding: 12px 0;
+    }
+    .header {
+        padding: 34px 20px;
+    }
+    footer {
+        padding: 34px 6px 28px 6px;
+    }
+    .modal-content {
+        padding: 16px 8px 10px 8px;
+    }
+}
+
 @media (max-width: 600px) {
+    body {
+        padding: 0;
+    }
+    .dashboard, .header, footer {
+        border-radius: 0 !important;
+        max-width: 100vw !important;
+        margin: 0 !important;
+    }
+    .header {
+        padding: 22px 8px;
+        margin-bottom: 26px;
+        font-size: 1em;
+    }
+
+    .bot-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .bot-card {
+        padding: 18px 8px 14px 8px;
+        border-radius: 8px;
+    }
+
     /* Button Responsive Styles */
-    button {
+    button, .control-btn {
         width: 100%;
         margin: 10px 0;
-        padding: 15px;
         font-size: 18px;
+        padding: 16px 0;
+        border-radius: 6px;
     }
 
     #buttonContainer {
         flex-direction: column;
         margin: 10px 0;
+        gap: 0px;
     }
 
     /* Table Responsive Styles */
-    table, 
-    th, 
+    table,
+    th,
     td {
         display: block;
         width: 100%;
@@ -399,5 +559,11 @@ footer a {
         padding-left: 10px;
         font-weight: bold;
         text-align: left;
+    }
+
+    .modal-content {
+        padding: 8px 2px 6px 2px;
+        width: 97%;
+        max-width: unset;
     }
 }
