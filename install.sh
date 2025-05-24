@@ -7,7 +7,7 @@ usage() {
 }
 
 DNF_PACKAGES=""
-PIP_PACKAGES="gunicorn"
+PIP_PACKAGES="gunicorn dateutil"
 
 echo "[INFO] Starting install.sh script"
 
