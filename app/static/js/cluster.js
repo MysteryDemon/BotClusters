@@ -127,6 +127,7 @@ function updateBotCards(processes) {
         const botCard = document.createElement('div');
         botCard.className = 'bot-card';
         const isRunning = process.status === 'RUNNING';
+        const isPaused = process.paused; 
 
         // Format the bot name using the actual bot number from the process name
         const displayName = formatBotName(process.name);
