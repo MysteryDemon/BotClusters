@@ -1,20 +1,11 @@
 import os
-import dateutil
 import subprocess
 import json
-import glob
 import time
-import aiofiles
 import logging
 import signal
 from concurrent.futures import ThreadPoolExecutor
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.date import DateTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 import shutil
-from dateutil.relativedelta import relativedelta
-import croniter
 import argparse
 import random
 from pathlib import Path
@@ -84,53 +75,6 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
-
-async def restart_bot_via_supervisorctl(bot_conf_name):
-    logging.info(f"Restarting {bot_conf_name} via supervisorctl...")
-    proc = await asyncio.create_subprocess_shell(
-        f"supervisorctl restart {bot_conf_name}",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await proc.communicate()
-    if proc.returncode == 0:
-        logging.info(f"Successfully restarted {bot_conf_name}: {stdout.decode()}")
-    else:
-        logging.error(f"Failed to restart {bot_conf_name}: {stderr.decode()}")
-
-def parse_cron_interval(cron_str):
-    units = {
-        "sec": "seconds",
-        "min": "minutes",
-        "hour": "hours",
-        "day": "days",
-        "month": "months",
-        "year": "years"
-    }
-    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?$", cron_str)
-    if match:
-        value, unit = match.groups()
-        value = int(value)
-        unit = units[unit]
-        return {unit: value}
-    return None
-
-def schedule_bot_restarts(scheduler, clusters):
-    for cluster in clusters:
-        cron = cluster.get("cron")
-        bot_conf_name = cluster['bot_number'].replace(" ", "_")
-        if not cron:
-            continue
-        interval_kwargs = parse_cron_interval(cron)
-        if interval_kwargs:
-            trigger = IntervalTrigger(**interval_kwargs)
-            scheduler.add_job(
-                restart_bot_via_supervisorctl,
-                trigger=trigger,
-                args=[bot_conf_name],
-                id=f'restart_{bot_conf_name}',
-                replace_existing=True
-            )
     
 async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', err_pattern='*_err.log', interval_hours=24):
     while True:
@@ -168,6 +112,7 @@ def load_config(file_path):
 
             prefix = generate_prefix()
             cluster_name = f"{prefix} {cluster['name']}"
+
             clusters.append({
                 "name": cluster_name,
                 "bot_number": f"{prefix} {details[0]}",
@@ -175,9 +120,7 @@ def load_config(file_path):
                 "branch": details[2],
                 "run_command": details[3],
                 "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
-                "python_version": details[5] if len(details) > 5 and not (isinstance(details[5], str) and details[5].startswith("cron=")) else None,
-                "cron": details[6][5:] if len(details) > 6 and isinstance(details[6], str) and details[6].startswith("cron=") else None,
-            })
+                "python_version": details[5] if len(details) > 5 else None })
 
         except json.JSONDecodeError:
             logging.error(f"Error decoding JSON for {cluster['name']}, skipping.")
@@ -185,6 +128,7 @@ def load_config(file_path):
 
     if not validate_config(clusters):
         raise ValueError("Invalid configuration file.")
+
     return clusters
 
 load_dotenv('cluster.env', override=True)
@@ -345,24 +289,19 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 async def main_async():
-    last_restart = {}
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
-    scheduler = AsyncIOScheduler()
-    schedule_bot_restarts(scheduler, clusters)
-    scheduler.start()
     await cleanup_existing_bots()
+
     if args.restart:
         logging.info('Restarting bot manager...')
-        await asyncio.gather(*(async_supervisorctl(
-            f"supervisorctl stop {cluster['bot_number'].replace(' ', '_')}"
-        ) for cluster in clusters))
+        await asyncio.gather(*(async_supervisorctl(f"supervisorctl stop {cluster['bot_number'].replace(' ', '_')}") for cluster in clusters))
         await reload_supervisord()
     else:
         logging.info('Starting bot manager...')
         await sort_bot_run_commands(clusters)
-                
+
 if __name__ == "__main__":
     asyncio.run(main_async())
