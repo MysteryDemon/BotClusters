@@ -165,9 +165,6 @@ def load_config(file_path):
                     cron_value = details[5][5:]
                 else:
                      python_version = details[5]
-
-            if len(details) > 6 and isinstance(details[6], str) and details[6].startswith("cron="):
-                cron_value = details[6][5:]
                 
             clusters.append({
                 "name": cluster_name,
