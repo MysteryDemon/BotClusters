@@ -224,6 +224,15 @@ async def get_process_status(bot_conf_name):
                 return parts[1]
     return None
 
+async def cleanup_existing_bots():
+    conf_dir = Path(SUPERVISORD_CONF_DIR)
+    for conf_file in conf_dir.glob("*.conf"):
+        bot_conf_name = conf_file.stem
+        await async_supervisorctl(f"supervisorctl stop {bot_conf_name}")
+        conf_file.unlink()
+        logging.info(f"Cleaned up supervisord config and stopped bot: {bot_conf_name}")
+    await reload_supervisord()
+
 async def wait_for_process_stop(bot_conf_name, timeout=30, interval=2):
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -269,6 +278,8 @@ async def main_async():
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
+
+    await cleanup_existing_bots()
 
     if args.restart:
         logging.info('Restarting bot manager...')
