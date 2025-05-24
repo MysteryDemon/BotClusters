@@ -40,13 +40,14 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## #️⃣ Sample `Var.CLUSTERS`
 
-| Config | Description | Required |
+| Config | Description | Required(compulsory) |
 |----------|-------------|----------|
 | `botname` | Unique name for your bot | ✅ |
 | `git_url` | GitHub repository URL | ✅ |
 | `branch` | Repository branch name | ✅ |
 | `run_command` | Bot execution command | ✅ |
 | `env` | Environment variables | ❌ |
+| `python_version` | Python Version | ❌ |
 
 ---
 
@@ -101,6 +102,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 
 ## 📝 ***Notes***
 * **Ensure all your bots are compatible with Python**
+* **Its not compulsory to set a python version only use when your bot needs a specific python version to run on**
 * **Docker support is in development**
 * **Keep your tokens and sensitive information secure**
 * **if your Bot has a dependency of packages thats not installed yet, use `install.sh` to install them**
