@@ -84,6 +84,53 @@ def validate_config(clusters):
 
     logging.info("Configuration validation successful.")
     return True
+
+async def restart_bot_via_supervisorctl(bot_conf_name):
+    logging.info(f"Restarting {bot_conf_name} via supervisorctl...")
+    proc = await asyncio.create_subprocess_shell(
+        f"supervisorctl restart {bot_conf_name}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    if proc.returncode == 0:
+        logging.info(f"Successfully restarted {bot_conf_name}: {stdout.decode()}")
+    else:
+        logging.error(f"Failed to restart {bot_conf_name}: {stderr.decode()}")
+
+def parse_cron_interval(cron_str):
+    units = {
+        "sec": "seconds",
+        "min": "minutes",
+        "hour": "hours",
+        "day": "days",
+        "month": "months",
+        "year": "years"
+    }
+    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?$", cron_str)
+    if match:
+        value, unit = match.groups()
+        value = int(value)
+        unit = units[unit]
+        return {unit: value}
+    return None
+
+def schedule_bot_restarts(scheduler, clusters):
+    for cluster in clusters:
+        cron = cluster.get("cron")
+        bot_conf_name = cluster['bot_number'].replace(" ", "_")
+        if not cron:
+            continue
+        interval_kwargs = parse_cron_interval(cron)
+        if interval_kwargs:
+            trigger = IntervalTrigger(**interval_kwargs)
+            scheduler.add_job(
+                restart_bot_via_supervisorctl,
+                trigger=trigger,
+                args=[bot_conf_name],
+                id=f'restart_{bot_conf_name}',
+                replace_existing=True
+            )
     
 async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', err_pattern='*_err.log', interval_hours=24):
     while True:
@@ -98,58 +145,6 @@ async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', e
         except Exception as e:
             logging.error(f"Error during log cleanup: {e}")
         await asyncio.sleep(interval_hours * 3600)
-
-def schedule_bot_restarts(scheduler, clusters):
-    for cluster in clusters:
-        cron = cluster.get("cron")
-        bot_key = cluster.get('bot_number')
-        if not cron:
-            logging.info(f"No cron for {bot_key}, skipping scheduling.")
-            continue
-
-        interval_kwargs = parse_cron_interval(cron)
-        if interval_kwargs:
-            # Use IntervalTrigger for "10 min", "2 hour", etc.
-            trigger = IntervalTrigger(**interval_kwargs)
-        else:
-            try:
-                # Try to parse as standard cron string, fallback
-                trigger = CronTrigger.from_crontab(cron)
-            except Exception as e:
-                logging.error(f"Invalid cron format for {bot_key}: {cron} ({e})")
-                continue
-
-        try:
-            scheduler.add_job(
-                restart_bot_cron,
-                trigger=trigger,
-                args=[cluster],
-                id=f'restart_{bot_key}',
-                replace_existing=True
-            )
-            logging.info(f"Scheduled restart for {bot_key} with cron: {cron}")
-        except Exception as e:
-            logging.error(f"Failed to schedule restart for {bot_key}: {cron} ({e})")
-
-def parse_cron_interval(cron_str):
-    logging.info(f"Parsing cron interval: {cron_str}")
-    units = {
-        "sec": "seconds",
-        "min": "minutes",
-        "hour": "hours",
-        "day": "days",
-        "month": "months",
-        "year": "years"
-    }
-    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?$", cron_str)
-    if match:
-        value, unit = match.groups()
-        value = int(value)
-        unit = units[unit]
-        logging.info(f"Parsed cron: {value} {unit}")
-        return {unit: value}
-    logging.warning(f"Failed to parse cron interval: {cron_str}")
-    return None
 
 def load_config(file_path):
     logging.info(f'Loading configuration from {file_path}')
