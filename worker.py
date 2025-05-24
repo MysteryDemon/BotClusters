@@ -112,6 +112,7 @@ def load_config(file_path):
 
             prefix = generate_prefix()
             cluster_name = f"{prefix} {cluster['name']}"
+            cron_value = details[6] if len(details) > 6 else cluster.get("cron", None)
 
             clusters.append({
                 "name": cluster_name,
@@ -120,7 +121,9 @@ def load_config(file_path):
                 "branch": details[2],
                 "run_command": details[3],
                 "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
-                "python_version": details[5] if len(details) > 5 else None })
+                "python_version": details[5] if len(details) > 5 else None,
+                "cron": cron_value
+            })
 
         except json.JSONDecodeError:
             logging.error(f"Error decoding JSON for {cluster['name']}, skipping.")
@@ -139,6 +142,7 @@ def write_supervisord_config(cluster, command):
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
 
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
+    cron_line = f"cron={cluster['cron']}" if cluster.get("cron") else ""
 
     config_content = f"""
     [program:{cluster['bot_number'].replace(' ', '_')}]
@@ -150,6 +154,7 @@ def write_supervisord_config(cluster, command):
     stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
     stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
     {f"environment={env_vars}" if env_vars else ""}
+    {cron_line}
     """
 
     config_path.write_text(config_content.strip())
