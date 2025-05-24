@@ -1,56 +1,609 @@
+/* Reset and Base Styles */
 body {
     font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f8f9fa;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+h2 {
+    color: #007BFF;
+    text-align: center;
+}
+
+hr {
+    border: 0;
+    height: 2px;
+    background: linear-gradient(to right, rgba(221,221,221,0), rgba(221,221,221,1), rgba(221,221,221,0));
+    margin: 25px 0;
+}
+
+/* Layout Components */
+.dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header {
+    background: linear-gradient(135deg, #2c3e50 0%, #1a2530 100%);
+    color: white;
+    padding: 40px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Light Mode */
+body.light-mode {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.header.light-mode {
+    background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%);
+    color: #000000;
+}
+
+/* Bot Grid Layout */
+.bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+/* Status indicators with enhanced design */
+.bot-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 0.9em;
+    font-weight: 600;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.bot-status::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 0 rgba(46, 204, 113, 0.4);
+}
+
+.status-online {
+    background-color: rgba(46, 204, 113, 0.15);
+    color: #27ae60;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.status-online::before {
+    background-color: #2ecc71;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.7);
+}
+
+.status-offline {
+    background-color: rgba(231, 76, 60, 0.15);
+    color: #c0392b;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.status-offline::before {
+    background-color: #e74c3c;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.7);
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Update the bot header styles */
+.bot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px 0;
+    border-bottom: 2px solid rgba(44, 62, 80, 0.1);
+}
+
+.bot-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #2c3e50;
+    position: relative;
+}
+
+.bot-header h2::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -5px;
+    width: 40px;
+    height: 3px;
+    background-color: #007BFF;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.bot-info p:first-child {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    font-family: monospace;
+}
+
+/* Bot Card Styles */
+.bot-card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.bot-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.bot-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(90deg, #007BFF, #00c6ff);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.bot-card:hover::after {
+    transform: scaleX(1);
+}
+
+.bot-info {
+    margin: 18px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #007BFF;
+}
+
+.bot-info p {
+    margin: 8px 0;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 25px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+table thead {
+    background: linear-gradient(90deg, #007BFF, #00a1ff);
+    color: white;
+}
+
+table th, 
+table td {
+    padding: 15px;
+    border: none;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+table th {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+table tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+/* Button Container */
+#buttonContainer {
     display: flex;
     justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    background-color: #f5f5f5; /* Ensure consistent background color */
+    flex-wrap: wrap;
+    margin: 25px 0;
+    gap: 10px;
 }
 
-.login-container {
-    max-width: 400px;
-    width: 80%; /* Ensure the container takes full width on smaller screens */
-    padding: 60px;
-    background-color: white;
-    border-radius: 20px;
-    box-shadow: 0 12px 10px rgba(0,0,0,0.1);
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
-}
-
-.login-container h2 {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.login-container div {
-    margin-bottom: 15px;
-}
-
-.login-container label {
-    display: block;
-    margin-bottom: 10px;
-}
-
-.login-container input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 20px;
-    box-sizing: border-box; /* Include padding in the element's total width */
-}
-
-.login-container button {
-    width: 100%; /* Ensure the button takes full width of the container */
-    padding: 15px;
-    background-color: #007BFF;
-    color: white;
+/* Button Base Styles */
+button,
+.control-btn {
+    padding: 12px 24px;
     border: none;
-    border-radius: 30px;
+    border-radius: 6px;
+    font-size: 16px;
     cursor: pointer;
-    box-sizing: border-box; /* Include padding in the element's total width */
+    transition: all 0.3s ease;
+    margin: 5px;
+    position: relative;
+    overflow: hidden;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-.login-container button:hover {
-    background-color: #0056b3;
+button {
+    background: linear-gradient(135deg, #007BFF, #00a1ff);
+    color: white;
+}
+
+button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255,255,255,0.1);
+    transform: scale(0);
+    border-radius: 50%;
+    transition: transform 0.5s ease;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #0056b3, #0074cc);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,123,255,0.2);
+}
+
+button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(0,123,255,0.2);
+}
+
+button:hover::after {
+    transform: scale(2);
+    opacity: 0;
+}
+
+/* Specialized Button Styles */
+.control-btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+}
+
+.start-btn {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    color: white;
+}
+
+.start-btn:hover {
+    background: linear-gradient(135deg, #27ae60, #219955);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(46,204,113,0.2);
+}
+
+.stop-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+}
+
+.stop-btn:hover {
+    background: linear-gradient(135deg, #c0392b, #a62c1e);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(231,76,60,0.2);
+}
+
+.restart-btn {
+    background: linear-gradient(135deg, #f1c40f, #f39c12);
+    color: #2c3e50;
+}
+
+.restart-btn:hover {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(241,196,15,0.2);
+}
+
+.log-btn {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+}
+
+.log-btn:hover {
+    background: linear-gradient(135deg, #2980b9, #1a5f88);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(52,152,219,0.2);
+}
+
+.control-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.greenYellowButton {
+    background: linear-gradient(135deg, #9ACD32, #8BBF31);
+    color: white;
+}
+
+.greenYellowButton:hover {
+    background: linear-gradient(135deg, #8BBF31, #7AAF30);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(154,205,50,0.2);
+}
+
+.greenYellowButton:active {
+    background: linear-gradient(135deg, #7AAF30, #69A12F);
+    transform: translateY(1px);
+    box-shadow: 0 2px 5px rgba(154,205,50,0.2);
+}
+
+/* Loading Animation */
+button.loading {
+    position: relative;
+    color: transparent !important;
+}
+
+button.loading::after,
+.greenYellowButton.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translate(-50%, -50%);
+}
+
+button.loading::after {
+    border-top: 3px solid #ffffff;
+}
+
+.greenYellowButton.loading::after {
+    border-top: 3px solid #ffffff;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+    backdrop-filter: blur(3px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 30px;
+    border: none;
+    border-radius: 12px;
+    width: 80%;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.close:hover,
+.close:focus {
+    color: #333;
+    background-color: #f1f1f1;
+    text-decoration: none;
+}
+
+#log-content {
+    white-space: pre-wrap;
+    font-family: monospace;
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #007BFF;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    line-height: 1.5;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+/* Footer Styles */
+footer {
+    background: linear-gradient(135deg, #2c3e50 0%, #1a2530 100%);
+    color: #fff;
+    text-align: center;
+    padding: 60px;
+    border-radius: 12px;
+    margin: 0 auto;
+    margin-top: 20px;
+    max-width: 1080px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 -8px 20px rgba(0,0,0,0.1);
+}
+
+footer::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(52,152,219,0.7), transparent);
+}
+
+footer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at bottom center, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+footer a {
+    color: #3498db;
+    text-decoration: none;
+    position: relative;
+    padding: 2px 4px;
+    transition: all 0.3s ease;
+}
+
+footer a:hover {
+    color: #2ecc71;
+}
+
+footer a::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+footer a:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    /* Button Responsive Styles */
+    button {
+        width: 100%;
+        margin: 10px 0;
+        padding: 15px;
+        font-size: 18px;
+    }
+
+    #buttonContainer {
+        flex-direction: column;
+        margin: 10px 0;
+    }
+
+    /* Table Responsive Styles */
+    table, 
+    th, 
+    td {
+        display: block;
+        width: 100%;
+    }
+
+    table th {
+        display: none;
+    }
+
+    table td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border: none;
+        border-bottom: 1px solid #ddd;
+    }
+
+    table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: 50%;
+        padding-left: 10px;
+        font-weight: bold;
+        text-align: left;
+    }
 }
