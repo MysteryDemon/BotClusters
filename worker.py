@@ -151,13 +151,15 @@ def write_supervisord_config(cluster, command):
         f"stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log",
         f"stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log"
     ]
-
     if cluster.get("env") and isinstance(cluster["env"], dict) and len(cluster["env"]) > 0:
         env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()])
         lines.append(f"environment={env_vars}")
 
     if cluster.get("cron"):
         lines.append(f"cron={cluster['cron']}")
+
+    if cluster.get("python_version"):
+        lines.append(f"python_version={cluster['python_version']}")
 
     config_content = "\n".join(lines)
     config_path.write_text(config_content)
