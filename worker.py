@@ -110,8 +110,7 @@ def parse_cron_interval(cron_str):
         return {unit: value}
     return None
 
-async def cronjob_restart_loop(clusters):
-    last_restart = {}
+async def cronjob_restart_loop(clusters, last_restart):
     while True:
         for cluster in clusters:
             cron = cluster.get("cron")
@@ -338,16 +337,23 @@ async def main_async():
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
-    asyncio.create_task(cronjob_restart_loop(clusters))
     await cleanup_existing_bots()
-
+    last_restart = {}
     if args.restart:
         logging.info('Restarting bot manager...')
-        await asyncio.gather(*(async_supervisorctl(f"supervisorctl stop {cluster['bot_number'].replace(' ', '_')}") for cluster in clusters))
+        await asyncio.gather(*(async_supervisorctl(
+            f"supervisorctl stop {cluster['bot_number'].replace(' ', '_')}"
+        ) for cluster in clusters))
         await reload_supervisord()
     else:
         logging.info('Starting bot manager...')
         await sort_bot_run_commands(clusters)
+        for cluster in clusters:
+            cron = cluster.get("cron")
+            if cron:
+                bot_key = cluster['bot_number']
+                last_restart[bot_key] = time.time()
+    asyncio.create_task(cronjob_restart_loop(clusters, last_restart))
 
 if __name__ == "__main__":
     asyncio.run(main_async())
