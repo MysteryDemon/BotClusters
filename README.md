@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="gui.png" alt="IMG-20250524-213433-914-edit-261278564505495" width="400"/>
+  <img src="gui.png" alt="" width="400"/>
 </div>
 
 ---
