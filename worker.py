@@ -140,9 +140,8 @@ clusters = load_config("config.json")
 def write_supervisord_config(cluster, command):
     config_path = Path(SUPERVISORD_CONF_DIR) / f"{cluster['bot_number'].replace(' ', '_')}.conf"
     logging.info(f"Writing supervisord configuration for {cluster['bot_number']} at {config_path}")
-
     env_vars = ','.join([f'{key}="{value}"' for key, value in cluster['env'].items()]) if cluster['env'] else ""
-
+    cron_line = f"cron={cluster['cron']}" if cluster.get('cron') else ""
     config_content = f"""
     [program:{cluster['bot_number'].replace(' ', '_')}]
     command={command}
@@ -153,8 +152,8 @@ def write_supervisord_config(cluster, command):
     stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
     stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
     {f"environment={env_vars}" if env_vars else ""}
+    {cron_line}
     """
-
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
 
