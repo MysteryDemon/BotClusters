@@ -8,6 +8,8 @@ import aiofiles
 import logging
 import signal
 from concurrent.futures import ThreadPoolExecutor
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 import shutil
 from dateutil.relativedelta import relativedelta
 import croniter
@@ -95,27 +97,37 @@ async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', e
             logging.error(f"Error during log cleanup: {e}")
         await asyncio.sleep(interval_hours * 3600)
 
-async def restart_bot_cron(cluster):
-    bot_conf_name = cluster['bot_number'].replace(" ", "_")
-    config_path = Path(SUPERVISORD_CONF_DIR) / f"{bot_conf_name}.conf"
+def schedule_bot_restarts(scheduler, clusters):
+    for cluster in clusters:
+        cron = cluster.get("cron")
+        bot_key = cluster.get('bot_number')
+        if not cron:
+            logging.info(f"No cron for {bot_key}, skipping scheduling.")
+            continue
 
-    if not config_path.exists():
-        logging.error(f"Config file not found for {bot_conf_name}")
-        return
-        
-    async with aiofiles.open(config_path, 'r') as f:
-        config_content = await f.read()
+        interval_kwargs = parse_cron_interval(cron)
+        if interval_kwargs:
+            # Use IntervalTrigger for "10 min", "2 hour", etc.
+            trigger = IntervalTrigger(**interval_kwargs)
+        else:
+            try:
+                # Try to parse as standard cron string, fallback
+                trigger = CronTrigger.from_crontab(cron)
+            except Exception as e:
+                logging.error(f"Invalid cron format for {bot_key}: {cron} ({e})")
+                continue
 
-    await async_supervisorctl(f"supervisorctl stop {bot_conf_name}")
-    config_path.unlink()
-    await async_supervisorctl("supervisorctl reread")
-    await async_supervisorctl("supervisorctl update")
-    await asyncio.sleep(2)
-    await start_bot(cluster)
-    await async_supervisorctl("supervisorctl reread")
-    await async_supervisorctl("supervisorctl update")
-    await async_supervisorctl(f"supervisorctl start {bot_conf_name}")
-    logging.info(f"Bot {bot_conf_name} restarted by cron.")
+        try:
+            scheduler.add_job(
+                restart_bot_cron,
+                trigger=trigger,
+                args=[cluster],
+                id=f'restart_{bot_key}',
+                replace_existing=True
+            )
+            logging.info(f"Scheduled restart for {bot_key} with cron: {cron}")
+        except Exception as e:
+            logging.error(f"Failed to schedule restart for {bot_key}: {cron} ({e})")
 
 def parse_cron_interval(cron_str):
     logging.info(f"Parsing cron interval: {cron_str}")
@@ -136,38 +148,6 @@ def parse_cron_interval(cron_str):
         return {unit: value}
     logging.warning(f"Failed to parse cron interval: {cron_str}")
     return None
-
-async def cronjob_restart_loop(clusters, next_run_times):
-    logging.info("Starting cronjob_restart_loop with simple interval tracking...")
-
-    for cluster in clusters:
-        cron_str = cluster.get("cron")
-        if not cron_str:
-            continue
-        interval_seconds = parse_cron_interval(cron_str)
-        if interval_seconds:
-            next_run_times[cluster['bot_number']] = time.time() + interval_seconds
-
-    while True:
-        now = time.time()
-        for cluster in clusters:
-            bot_key = cluster.get("bot_number")
-            cron_str = cluster.get("cron")
-            if not cron_str:
-                continue
-
-            interval_seconds = parse_cron_interval(cron_str)
-            next_time = next_run_times.get(bot_key)
-
-            if not interval_seconds or next_time is None:
-                continue
-
-            if now >= next_time:
-                logging.info(f"Restarting bot {bot_key} (interval: {cron_str})")
-                await restart_bot_cron(cluster)
-                next_run_times[bot_key] = now + interval_seconds
-                logging.info(f"Next restart for {bot_key} scheduled at {time.ctime(next_run_times[bot_key])}")
-        await asyncio.sleep(5)
 
 def load_config(file_path):
     logging.info(f'Loading configuration from {file_path}')
@@ -368,12 +348,14 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 async def main_async():
-    next_run_times = {}
+    last_restart = {}
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
     asyncio.create_task(cleanup_logs())
-    asyncio.create_task(cronjob_restart_loop(clusters, next_run_times))
+    scheduler = AsyncIOScheduler()
+    schedule_bot_restarts(scheduler, clusters)
+    scheduler.start()
     await cleanup_existing_bots()
     if args.restart:
         logging.info('Restarting bot manager...')
@@ -384,10 +366,6 @@ async def main_async():
     else:
         logging.info('Starting bot manager...')
         await sort_bot_run_commands(clusters)
-        for cluster in clusters:
-            cron = cluster.get("cron")
-            if cron:
-                bot_key = cluster['bot_number']
                 
 if __name__ == "__main__":
     asyncio.run(main_async())
