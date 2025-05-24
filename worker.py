@@ -301,7 +301,7 @@ async def main_async():
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
-    asyncio.create_task(cleanup_logs())
+    asyncio.create_task(cleanup_logs(interval_hours=30/3600))
     await cleanup_existing_bots()
 
     if args.restart:
