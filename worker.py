@@ -1,19 +1,20 @@
 import os
-import subprocess
+import re
 import json
+import glob
 import time
-import logging
-import signal
-from concurrent.futures import ThreadPoolExecutor
 import shutil
-import argparse
+import signal
 import random
+import asyncio
+import logging
+import argparse
+import subprocess
 from pathlib import Path
 from phrase import WORD_LIST
-from logging.handlers import RotatingFileHandler
-import re
 from dotenv import load_dotenv
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from logging.handlers import RotatingFileHandler
 
 LOG_FILE = 'bot_manager.log'
 LOG_SIZE = 10 * 1024 * 1024 
