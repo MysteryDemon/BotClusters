@@ -7,7 +7,7 @@ usage() {
 }
 
 DNF_PACKAGES="nano"
-PIP_PACKAGES="croniter python-dateutil apscheduler"
+PIP_PACKAGES="croniter python-dateutil apscheduler requests python-dotenv"
 
 echo "[INFO] Starting install.sh script"
 
