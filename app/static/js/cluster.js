@@ -177,6 +177,10 @@ function updateBotCards(processes) {
 
 function toggleBot(processName, currentStatus) {
     const action = currentStatus === 'RUNNING' ? 'stop' : 'start';
+    if (action === 'stop') {
+        const confirmed = confirm(`Are you sure you want to stop ${formatBotName(processName)}?`);
+        if (!confirmed) return;
+    }
     fetch(`/supervisor/${action}/${processName}`, {
         method: 'POST'
     })
@@ -277,4 +281,3 @@ window.onbeforeunload = function() {
     if (socket) socket.disconnect();
     if (updateInterval) clearInterval(updateInterval);
 };
-
