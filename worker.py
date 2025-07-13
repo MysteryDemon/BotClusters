@@ -83,20 +83,6 @@ def validate_config(clusters):
     logging.info("Configuration validation successful.")
     return True
     
-async def cleanup_logs(log_dir='/var/log/supervisor', log_pattern='*_out.log', err_pattern='*_err.log', interval_hours=24):
-    while True:
-        try:
-            for pattern in [log_pattern, err_pattern]:
-                for log_file in glob.glob(os.path.join(log_dir, pattern)):
-                    try:
-                        os.remove(log_file)
-                        logging.info(f"Deleted log file: {log_file}")
-                    except Exception as e:
-                        logging.error(f"Failed to delete log file {log_file}: {e}")
-        except Exception as e:
-            logging.error(f"Error during log cleanup: {e}")
-        await asyncio.sleep(interval_hours * 3600)
-
 def load_config(file_path):
     logging.info(f'Loading configuration from {file_path}')
     
@@ -129,7 +115,6 @@ def load_config(file_path):
                 "run_command": details[3],
                 "env": details[4] if len(details) > 4 and isinstance(details[4], dict) else {},
                 "python_version": details[5] if len(details) > 5 else None,
-                "cron": cron_value
             })
 
         except json.JSONDecodeError:
@@ -159,7 +144,6 @@ def write_supervisord_config(cluster, command):
     stderr_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_err.log
     stdout_logfile=/var/log/supervisor/{cluster['bot_number'].replace(' ', '_')}_out.log
     {f"environment={env_vars}" if env_vars else ""}
-    {cron_line}
     """
     config_path.write_text(config_content.strip())
     logging.info(f"Supervisord configuration for {cluster['bot_number']} written successfully.")
@@ -301,7 +285,6 @@ async def main_async():
     parser = argparse.ArgumentParser(description='Bot Manager')
     parser.add_argument('--restart', action='store_true', help='Restart all bots')
     args = parser.parse_args()
-    asyncio.create_task(cleanup_logs(interval_hours=168))
     await cleanup_existing_bots()
 
     if args.restart:
