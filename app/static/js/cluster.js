@@ -281,4 +281,3 @@ window.onbeforeunload = function() {
     if (socket) socket.disconnect();
     if (updateInterval) clearInterval(updateInterval);
 };
-

@@ -1,4 +1,3 @@
-/* Reset and Base Styles */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -174,28 +173,6 @@ body.light-mode {
     overflow: hidden;
 }
 
-.bot-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-}
-
-.bot-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 5px;
-    background: linear-gradient(90deg, #007BFF, #00c6ff);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s ease;
-}
-
-.bot-card:hover::after {
-    transform: scaleX(1);
-}
-
 .bot-info {
     margin: 18px 0;
     padding: 10px;
@@ -297,17 +274,6 @@ button::after {
     transition: transform 0.5s ease;
 }
 
-button:hover {
-    background: linear-gradient(135deg, #0056b3, #0074cc);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,123,255,0.2);
-}
-
-button:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px 5px rgba(0,123,255,0.2);
-}
-
 button:hover::after {
     transform: scale(2);
     opacity: 0;
@@ -340,32 +306,14 @@ button:hover::after {
     color: white;
 }
 
-.stop-btn:hover {
-    background: linear-gradient(135deg, #c0392b, #a62c1e);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(231,76,60,0.2);
-}
-
 .restart-btn {
     background: linear-gradient(135deg, #f1c40f, #f39c12);
     color: #2c3e50;
 }
 
-.restart-btn:hover {
-    background: linear-gradient(135deg, #f39c12, #e67e22);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(241,196,15,0.2);
-}
-
 .log-btn {
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
-}
-
-.log-btn:hover {
-    background: linear-gradient(135deg, #2980b9, #1a5f88);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(52,152,219,0.2);
 }
 
 .control-btn:active {

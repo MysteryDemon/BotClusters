@@ -44,7 +44,6 @@ SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 STATUS_CHECK_INTERVAL = 2
 MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
-CRON_JOBS = {}
 
 def parse_supervisor_status(status_line):
     try:
@@ -74,7 +73,6 @@ def parse_supervisor_status(status_line):
 def pause_process(process_name):
     result = run_supervisor_command("status", process_name)
     if result["status"] == "success":
-        # Get PID from status message
         proc = parse_supervisor_status(result["message"])
         if proc and proc["pid"]:
             try:
@@ -173,46 +171,7 @@ def verify_process_status(process_name, expected_status=None):
     except Exception as e:
         logger.error(f"Error verifying process status: {str(e)}")
         return None
-
-def parse_cron_interval(cron_value):
-    match = re.match(r"(\d+)\s*(sec|min|hour|day|month|year)s?", cron_value, re.IGNORECASE)
-    if not match:
-        return None
-    num, unit = int(match.group(1)), match.group(2).lower()
-    unit_seconds = {
-        "sec": 1,
-        "min": 60,
-        "hour": 3600,
-        "day": 86400,
-        "month": 2592000, 
-        "year": 31536000
-    }
-    return num * unit_seconds.get(unit, 0)
-
-def schedule_cronjobs():
-    config_dir = Path(SUPERVISORD_CONF_DIR)
-    for conf_file in config_dir.glob("*.conf"):
-        config = configparser.ConfigParser()
-        config.read(conf_file)
-        for section in config.sections():
-            if section.startswith("program:"):
-                process_name = section[8:]
-                cron_value = config[section].get("cron")
-                if cron_value:
-                    interval = parse_cron_interval(cron_value)
-                    if interval:
-                        if process_name not in CRON_JOBS:
-                            t = threading.Thread(target=cron_restart_loop, args=(process_name, interval), daemon=True)
-                            t.start()
-                            CRON_JOBS[process_name] = t
-
-def cron_restart_loop(process_name, interval):
-    while True:
-        time.sleep(interval)
-        logger.info(f"[CRON] Restarting {process_name} due to cron interval.")
-        run_supervisor_command("restart", process_name)
-        broadcast_status_update()
-
+        
 def broadcast_status_update():
     try:
         with app.app_context():
@@ -426,6 +385,8 @@ def manage_supervisor_process(action, process_name):
             
         elif action == "restart":
             try:
+                thoroughly_cleanup(process_name)
+                delete_supervisor_logs(process_name)
                 if config_path.exists():
                     with open(config_path, 'r') as f:
                         config_content = f.read()
@@ -538,3 +499,37 @@ def handle_error(e):
         "status": "error",
         "message": "An internal server error occurred"
     }), 500
+
+def delete_supervisor_logs(process_name):
+    try:
+        stdout_log = Path(SUPERVISOR_LOG_DIR) / f"{process_name}_out.log"
+        stderr_log = Path(SUPERVISOR_LOG_DIR) / f"{process_name}_err.log"
+        combined_log = Path(SUPERVISOR_LOG_DIR) / f"{process_name}_combined.log"
+        for log_file in [stdout_log, stderr_log, combined_log]:
+            if log_file.exists():
+                log_file.unlink()
+                logger.info(f"Deleted log file: {log_file}")
+    except Exception as e:
+        logger.error(f"Error deleting logs for {process_name}: {e}")
+
+def thoroughly_cleanup(process_name):
+    subprocess.run(f"pkill -f {process_name}", shell=True)
+    directory = None
+    config_path = Path(SUPERVISORD_CONF_DIR) / f"{process_name.replace(' ', '_')}.conf"
+    if config_path.exists():
+        config = configparser.ConfigParser()
+        config.read(config_path)
+        section = 'program:' + process_name
+        if section in config:
+            directory = config[section].get('directory')
+    if directory and Path(directory).exists():
+        for root, dirs, files in os.walk(directory):
+            for d in dirs:
+                if d == '__pycache__':
+                    pycache_dir = Path(root) / d
+                    for file in pycache_dir.glob('*.pyc'):
+                        file.unlink()
+                    pycache_dir.rmdir()
+            for f in files:
+                if f.endswith('.pyc'):
+                    (Path(root) / f).unlink()
