@@ -1,4 +1,4 @@
-FROM mysterydemon/botclusters:latest
+FROM mysterydemon/botclusters:master
 
 WORKDIR /app
 COPY install.sh /usr/local/bin/
