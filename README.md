@@ -77,7 +77,7 @@ You can run multiple bots in a same instance, for now it only works for pure pyt
 ---
 
 ## 📤 ***How To Deploy***
-[![Watch Tutorial](https://img.shields.io/badge/Watch%20Tutorial-%23FF0000?style=for-the-badge&logo=YouTube&logoColor=white)](https://youtu.be/EZJSQVtEj9o)
+[![Watch Tutorial](https://img.shields.io/badge/Watch%20Tutorial-%23FF0000?style=for-the-badge&logo=YouTube&logoColor=white)](https://youtu.be/saXUJEMJZJ0?si=K01v671F1xVhtePq)
 
 ---
 
@@ -118,3 +118,4 @@ password123
 ### 📚 ***References***
 
 - `Source Repository` : [MultiBots](https://github.com/bipinkrish/MultiBots)
+
