@@ -1,5 +1,5 @@
 flask-socketio==5.1.1
-eventlet==0.33.1
+eventlet==0.40.3
 dnspython==2.2.1
 asyncio
 gunicorn
