@@ -2,6 +2,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import os
+import json
 import signal
 import subprocess
 import re
@@ -12,11 +13,12 @@ import logging
 import time
 import threading
 import configparser
+from collections import defaultdict
 
 from app import app
 from flask import (
-    Flask, render_template, request, jsonify,
-    send_file, abort, redirect, url_for, session, flash
+    Flask, render_template, request, jsonify, Response,
+    send_file, abort, redirect, url_for, session, flash, stream_with_context
 )
 from flask_socketio import SocketIO, emit
 
@@ -44,6 +46,15 @@ SUPERVISORD_CONF_DIR = "/etc/supervisor/conf.d"
 STATUS_CHECK_INTERVAL = 2
 MAX_STATUS_CHECK_ATTEMPTS = 10
 TEMP_SUPERVISOR_CONFIGS = {}
+
+# Track consecutive failures per process for auto-pause
+FAILURE_COUNTS = defaultdict(int)
+MAX_FAILURES_BEFORE_PAUSE = 5
+PAUSED_BY_SYSTEM = set()
+
+# Cronjob restart interval (in hours), 0 = disabled
+CRON_RESTART_INTERVAL = int(os.environ.get('CRON_RESTART_HOURS', 0))
+_cron_thread = None
 
 def parse_supervisor_status(status_line):
     try:
@@ -177,11 +188,30 @@ def broadcast_status_update():
         with app.app_context():
             status = run_supervisor_command("status")
             if status["status"] == "success":
-                processes = [
-                    parse_supervisor_status(proc) 
-                    for proc in status["message"].splitlines() 
-                    if parse_supervisor_status(proc)
-                ]
+                processes = []
+                for proc_line in status["message"].splitlines():
+                    parsed = parse_supervisor_status(proc_line)
+                    if parsed:
+                        # Track failures: if FATAL or BACKOFF, increment counter
+                        pname = parsed["name"]
+                        if parsed["status"] in ("FATAL", "BACKOFF", "EXITED"):
+                            FAILURE_COUNTS[pname] += 1
+                            if FAILURE_COUNTS[pname] >= MAX_FAILURES_BEFORE_PAUSE and pname not in PAUSED_BY_SYSTEM:
+                                logger.warning(f"Process {pname} has failed {FAILURE_COUNTS[pname]} times, auto-pausing")
+                                PAUSED_BY_SYSTEM.add(pname)
+                                parsed["auto_paused"] = True
+                            elif pname in PAUSED_BY_SYSTEM:
+                                parsed["auto_paused"] = True
+                            else:
+                                parsed["auto_paused"] = False
+                        else:
+                            # Reset failure count on healthy status
+                            if parsed["status"] == "RUNNING":
+                                FAILURE_COUNTS[pname] = 0
+                                if pname in PAUSED_BY_SYSTEM:
+                                    PAUSED_BY_SYSTEM.discard(pname)
+                            parsed["auto_paused"] = pname in PAUSED_BY_SYSTEM
+                        processes.append(parsed)
                 
                 socketio.emit('status_update', {
                     "status": "success",
@@ -291,6 +321,17 @@ def handle_status_request():
             for proc in status["message"].splitlines():
                 parsed_proc = parse_supervisor_status(proc)
                 if parsed_proc:
+                    pname = parsed_proc["name"]
+                    if parsed_proc["status"] in ("FATAL", "BACKOFF", "EXITED"):
+                        FAILURE_COUNTS[pname] += 1
+                        if FAILURE_COUNTS[pname] >= MAX_FAILURES_BEFORE_PAUSE:
+                            PAUSED_BY_SYSTEM.add(pname)
+                        parsed_proc["auto_paused"] = pname in PAUSED_BY_SYSTEM
+                    else:
+                        if parsed_proc["status"] == "RUNNING":
+                            FAILURE_COUNTS[pname] = 0
+                            PAUSED_BY_SYSTEM.discard(pname)
+                        parsed_proc["auto_paused"] = pname in PAUSED_BY_SYSTEM
                     processes.append(parsed_proc)
             
             if not processes:
@@ -533,3 +574,109 @@ def thoroughly_cleanup(process_name):
             for f in files:
                 if f.endswith('.pyc'):
                     (Path(root) / f).unlink()
+
+
+# ── Log Stream ──────────────────────────────────────────────────
+@app.route('/logstream')
+@login_required
+def logstream_page():
+    return render_template('logstream.html')
+
+
+@app.route('/logstream/stream')
+@login_required
+def logstream_sse():
+    """Stream all supervisor stdout/stderr logs as Server-Sent Events."""
+    def generate():
+        log_dir = Path(SUPERVISOR_LOG_DIR)
+        # Track file positions
+        positions = {}
+        while True:
+            for log_file in sorted(log_dir.glob("*.log")):
+                if '_combined' in log_file.name:
+                    continue
+                try:
+                    pos = positions.get(log_file.name, 0)
+                    size = log_file.stat().st_size
+                    if size < pos:
+                        pos = 0  # file was truncated / rotated
+                    if size > pos:
+                        with log_file.open('r', errors='replace') as fh:
+                            fh.seek(pos)
+                            new_data = fh.read()
+                            positions[log_file.name] = fh.tell()
+                        if new_data.strip():
+                            payload = json.dumps({
+                                "file": log_file.name,
+                                "data": new_data
+                            })
+                            yield f"data: {payload}\n\n"
+                except Exception:
+                    pass
+            eventlet.sleep(1)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+        }
+    )
+
+
+# ── Cronjob Restart Config ──────────────────────────────────────
+@app.route('/config/cron', methods=['GET', 'POST'])
+@login_required
+def config_cron():
+    global CRON_RESTART_INTERVAL, _cron_thread
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        hours = int(data.get('hours', 0))
+        CRON_RESTART_INTERVAL = max(0, hours)
+        os.environ['CRON_RESTART_HOURS'] = str(CRON_RESTART_INTERVAL)
+        # Restart the cron thread with new interval
+        _start_cron_thread()
+        return jsonify({"status": "success", "hours": CRON_RESTART_INTERVAL})
+    return jsonify({"status": "success", "hours": CRON_RESTART_INTERVAL})
+
+
+@app.route('/supervisor/clear_failure/<process_name>', methods=['POST'])
+@login_required
+def clear_failure(process_name):
+    """Clear the auto-pause / failure state for a process so it can run again."""
+    FAILURE_COUNTS[process_name] = 0
+    PAUSED_BY_SYSTEM.discard(process_name)
+    # Attempt to start it again via supervisor
+    run_supervisor_command("start", process_name)
+    broadcast_status_update()
+    return jsonify({"status": "success", "message": f"Cleared failure state for {process_name}"})
+
+
+def _cron_restart_loop():
+    """Background loop that restarts all supervisor processes on schedule."""
+    while True:
+        interval = CRON_RESTART_INTERVAL
+        if interval <= 0:
+            eventlet.sleep(60)  # check back every minute
+            continue
+        logger.info(f"Cron restart: sleeping for {interval} hours")
+        eventlet.sleep(interval * 3600)
+        if CRON_RESTART_INTERVAL <= 0:
+            continue
+        logger.info("Cron restart: restarting all processes")
+        try:
+            run_supervisor_command("restart", "all")
+            broadcast_status_update()
+        except Exception as e:
+            logger.error(f"Cron restart error: {e}")
+
+
+def _start_cron_thread():
+    global _cron_thread
+    if _cron_thread is None or not _cron_thread:
+        _cron_thread = eventlet.spawn(_cron_restart_loop)
+
+
+# Start cron thread on import
+_start_cron_thread()
