@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,23 +10,71 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script defer src="{{ url_for('static', filename='js/cluster.js') }}"></script>
 </head>
+
 <body>
     <div class="dashboard">
+        <!-- Header -->
         <div class="header">
-            <h1>Dashboard</h1>
-            <p>⚙ Bots Manager</p>
+            <div class="header-top">
+                <div class="header-title">
+                    <h1>BotClusters</h1>
+                    <span class="header-badge" id="bot-count-badge">0 bots</span>
+                </div>
+                <div class="header-actions">
+                    <a href="/logstream" class="header-btn" target="_blank">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2 2h12v2H2V2zm0 4h8v2H2V6zm0 4h10v2H2v-2zm0 4h6v2H2v-2z" />
+                        </svg>
+                        Log Stream
+                    </a>
+                    <button class="header-btn" id="cron-btn" onclick="openCronModal()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path
+                                d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm0 14A6 6 0 1 1 8 2a6 6 0 0 1 0 12zm.5-9H7v5l4.3 2.5.7-1.2-3.5-2V5z" />
+                        </svg>
+                        Cron
+                    </button>
+                </div>
+            </div>
+            <div class="header-stats" id="header-stats">
+                <div class="stat-pill stat-online"><span class="stat-dot online"></span><span id="stat-online">0</span>
+                    Online</div>
+                <div class="stat-pill stat-offline"><span class="stat-dot offline"></span><span
+                        id="stat-offline">0</span> Offline</div>
+                <div class="stat-pill stat-paused"><span class="stat-dot paused"></span><span id="stat-paused">0</span>
+                    Paused</div>
+            </div>
         </div>
 
+        <!-- Bot Grid -->
         <div class="bot-grid" id="bot-grid">
             <!-- Bot cards will be dynamically populated here -->
         </div>
     </div>
-    
+
+    <!-- Log Modal -->
     <div id="log-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
             <h2>Process Logs</h2>
             <pre id="log-content"></pre>
+        </div>
+    </div>
+
+    <!-- Cron Config Modal -->
+    <div id="cron-modal" class="modal">
+        <div class="modal-content modal-sm">
+            <span class="close" onclick="closeCronModal()">&times;</span>
+            <h2>Restart Schedule</h2>
+            <p class="modal-desc">Set the interval (in hours) for automatic bot restarts. Set to 0 to disable.</p>
+            <div class="cron-input-group">
+                <input type="number" id="cron-hours" min="0" max="720" value="0" placeholder="Hours">
+                <span class="cron-unit">hours</span>
+            </div>
+            <div class="cron-actions">
+                <button class="control-btn save-btn" onclick="saveCron()">Save</button>
+                <button class="control-btn cancel-btn" onclick="closeCronModal()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -36,4 +85,5 @@
         </div>
     </footer>
 </body>
+
 </html>

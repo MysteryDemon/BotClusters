@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Stream - BotClusters</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/cluster.svg') }}" type="image/svg+xml">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+
+        .toolbar h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #58a6ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar-actions button {
+            padding: 6px 14px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #21262d;
+            color: #c9d1d9;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .toolbar-actions button:hover {
+            background: #30363d;
+        }
+
+        .toolbar-actions button.active {
+            background: #1f6feb;
+            border-color: #1f6feb;
+            color: #fff;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: #3fb950;
+            animation: blink 1.5s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: #f85149;
+            animation: none;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .4;
+            }
+        }
+
+        #log-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            scroll-behavior: smooth;
+        }
+
+        .log-line {
+            display: flex;
+            gap: 12px;
+            padding: 2px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            border-bottom: 1px solid rgba(48, 54, 61, .3);
+        }
+
+        .log-line:hover {
+            background: rgba(56, 139, 253, .05);
+        }
+
+        .log-source {
+            flex-shrink: 0;
+            color: #8b949e;
+            min-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .log-text {
+            white-space: pre-wrap;
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .log-text.stderr {
+            color: #f8847d;
+        }
+
+        .log-text.stdout {
+            color: #adbac7;
+        }
+
+        .back-link {
+            color: #58a6ff;
+            text-decoration: none;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar">
+        <h1>
+            <span class="status-dot" id="status-dot"></span>
+            Log Stream
+        </h1>
+        <div class="toolbar-actions">
+            <a href="/" class="back-link">&#8592; Dashboard</a>
+            <button onclick="toggleAutoScroll()" id="scroll-btn" class="active">Auto-scroll</button>
+            <button onclick="clearLogs()">Clear</button>
+        </div>
+    </div>
+    <div id="log-container"></div>
+
+    <script>
+        const container = document.getElementById('log-container');
+        const statusDot = document.getElementById('status-dot');
+        const scrollBtn = document.getElementById('scroll-btn');
+        let autoScroll = true;
+        let evtSource = null;
+        const MAX_LINES = 5000;
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            scrollBtn.classList.toggle('active', autoScroll);
+            if (autoScroll) container.scrollTop = container.scrollHeight;
+        }
+
+        function clearLogs() {
+            container.innerHTML = '';
+        }
+
+        function connect() {
+            if (evtSource) evtSource.close();
+            evtSource = new EventSource('/logstream/stream');
+            statusDot.classList.remove('disconnected');
+
+            evtSource.onmessage = function (e) {
+                try {
+                    const msg = JSON.parse(e.data);
+                    const lines = msg.data.split('\n').filter(l => l.trim());
+                    const isErr = msg.file.includes('_err');
+                    lines.forEach(line => {
+                        const el = document.createElement('div');
+                        el.className = 'log-line';
+                        const src = document.createElement('span');
+                        src.className = 'log-source';
+                        src.textContent = msg.file.replace('_out.log', '').replace('_err.log', '');
+                        const txt = document.createElement('span');
+                        txt.className = 'log-text ' + (isErr ? 'stderr' : 'stdout');
+                        txt.textContent = line;
+                        el.appendChild(src);
+                        el.appendChild(txt);
+                        container.appendChild(el);
+                    });
+                    // Trim old lines
+                    while (container.children.length > MAX_LINES) {
+                        container.removeChild(container.firstChild);
+                    }
+                    if (autoScroll) container.scrollTop = container.scrollHeight;
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+
+            evtSource.onerror = function () {
+                statusDot.classList.add('disconnected');
+                evtSource.close();
+                setTimeout(connect, 3000);
+            };
+        }
+
+        connect();
+    </script>
+</body>
+
+</html>
