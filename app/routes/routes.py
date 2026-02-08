@@ -678,5 +678,33 @@ def _start_cron_thread():
         _cron_thread = eventlet.spawn(_cron_restart_loop)
 
 
-# Start cron thread on import
+def _auto_delete_logs_loop():
+    """Background loop that deletes all supervisor logs every 24 hours."""
+    while True:
+        eventlet.sleep(24 * 3600)
+        logger.info("Auto log cleanup: deleting all supervisor logs")
+        try:
+            log_dir = Path(SUPERVISOR_LOG_DIR)
+            deleted = 0
+            for log_file in log_dir.glob("*.log"):
+                try:
+                    log_file.unlink()
+                    deleted += 1
+                except Exception as e:
+                    logger.error(f"Failed to delete {log_file}: {e}")
+            logger.info(f"Auto log cleanup: deleted {deleted} log files")
+        except Exception as e:
+            logger.error(f"Auto log cleanup error: {e}")
+
+
+_log_cleanup_thread = None
+
+def _start_log_cleanup_thread():
+    global _log_cleanup_thread
+    if _log_cleanup_thread is None or not _log_cleanup_thread:
+        _log_cleanup_thread = eventlet.spawn(_auto_delete_logs_loop)
+
+
+# Start background threads on import
 _start_cron_thread()
+_start_log_cleanup_thread()
