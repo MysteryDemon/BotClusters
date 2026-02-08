@@ -31,10 +31,10 @@ done
 
 if [ ! -z "$DNF_PACKAGES" ]; then
     echo "[INFO] Updating DNF repositories"
-    dnf -y update
+    dnf -y update || echo "[WARN] dnf update failed, continuing..."
     echo "[INFO] Installing DNF packages: $DNF_PACKAGES"
-    echo "$DNF_PACKAGES" | xargs dnf install -y
-    echo "[INFO] DNF packages installed successfully"
+    echo "$DNF_PACKAGES" | xargs dnf install -y || echo "[WARN] dnf install failed, continuing..."
+    echo "[INFO] DNF packages installed (with possible warnings)"
 fi
 
 if [ ! -z "$PIP_PACKAGES" ]; then
